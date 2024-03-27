@@ -1,0 +1,226 @@
+set drawbox true
+set icons true
+set hidden true
+set ignorecase true
+set ifs "\n"
+
+cmd showDirInfo ${{
+  size=$( du -csh ${fx} | grep 'total$' | sed 's/\t.*//g' )
+
+  if [ "${f}" = "${fx}" ]
+  then
+    lf -remote "send echo Size = ${size}"
+  else
+    lf -remote "send echo Total Size = ${size}"
+  fi
+}}
+
+cmd esc ${{
+  lf -remote 'send clear'
+  lf -remote 'send setfilter'
+  lf -remote 'send unselect'
+}}
+
+cmd copyAs ${{
+  filePathShort=$( printf "${f}" | grep -o '.\{1,60\}$' )
+  fileName=$( basename "${f}" )
+  newName=$( whiptail --inputbox --title "Copy item" "Copy a [${filePathShort}] as:" "8" "78" "${fileName}" 3>&1 1>&2 2>&3 )
+
+  if [ -z "${newName}" ] || [ "${newName}" = "${fileName}" ]
+  then
+    exit 0
+  fi
+
+  if [ -f "${f}" ]
+  then
+    cp "${f}" "${newName}"
+    lf -remote "send select \"${newName}\""
+    exit 0
+  fi
+
+  if [ -d "${f}" ]
+  then
+    cp -r "${f}" "${newName}"
+    lf -remote "send select \"${newName}\""
+    exit 0
+  fi
+}}
+
+cmd copyNameToClipboard ${{
+  # not ideal but works in most cases (todo: improve)
+  item=$( printf "${fx}" | sed 's-^.*/--' )
+
+  case $(uname -s) in
+      Linux*)     printf "${item}" | xsel --clipboard;;
+      Darwin*)    printf "${item}" | pbcopy;;
+  esac  
+}}
+
+cmd copyFullPathToClipboard ${{
+  case $(uname -s) in
+      Linux*)     printf "${fx}" | xsel --clipboard;;
+      Darwin*)    printf "${fx}" | pbcopy;;
+  esac
+}}
+
+cmd pasteFile ${{
+  lf -remote 'send paste'
+  lf -remote 'send clear'
+  lf -remote 'send unselect'
+}}
+
+cmd delete ${{
+  #                           |  file name only | join lines
+  fileNames=$( printf "${fx}" | sed 's-^.*/--'  | tr -s '\n' ','  )
+
+  # fileNames length > 60? 
+  if [ "${#fileNames}" -gt 60 ]
+  then
+    fileNames=$( printf "${fileNames}" | grep -o '.\{1,60\}$' | xargs printf "...%s" )
+  fi
+
+  if whiptail --title "Delete confirmation" --yesno --defaultno "Are you sure you want to delete a [${fileNames}] item(s)?" "8" "78" 3>&1 1>&2 2>&3
+  then
+    rm -rf -- ${fx}
+    printf "\tThe following item(s) has been deleted:\n%s\n" "${fx}"
+  fi
+}}
+
+cmd mkDir ${{
+  dirName=$( whiptail --inputbox --title "New Directory" "Enter new directory name:" "8" "78" 3>&1 1>&2 2>&3 )
+
+  if [ -n "$dirName" ]
+  then
+    mkdir "$dirName"
+    lf -remote "send select \"$dirName\""
+  fi
+}}
+
+cmd mkFile ${{
+  fileName=$( whiptail --inputbox --title "New File" "Enter new file name:" "8" "78" 3>&1 1>&2 2>&3 )
+
+  if [ -n "${fileName}" ]
+  then
+    vi "${fileName}"
+    if [ -f "${fileName}" ]
+    then
+      lf -remote "send select \"${fileName}\""
+    fi
+  fi
+}}
+
+cmd rename ${{
+  shortName=$( basename "${f}" )
+  newName=$( whiptail --inputbox --title "Rename an item" "Enter a new name:" "8" "78" "${shortName}" 3>&1 1>&2 2>&3 )
+
+  if [ -n "${newName}" ]
+  then
+    mv "${shortName}" "${newName}"
+    lf -remote "send select \"${newName}\""
+  fi
+}}
+
+cmd menu ${{
+  lfrcMenu="${HOME}/.config/lf/lfrc-menu.txt"
+
+  if [ ! -f "${lfrcMenu}" ]
+  then
+    echo "The quick menu [${lfrcMenu}] file not found"
+    exit 0
+  fi
+
+  counter=0
+  while read REPLY
+  do
+    if [ -z "${REPLY}" ]
+    then
+      continue
+    fi
+
+    counter=$(( counter + 1 ))
+
+    item=$( printf "${REPLY}" | sed 's/ |.*//g' )
+    set -- "$@" "${counter}" "${item}"
+  done < "${lfrcMenu}"
+
+  itemNr=$( whiptail --title "Quick menu" --menu "Choose an option" 25 78 16 "${@}" 3>&1 1>&2 2>&3 )
+  if [ -z "${itemNr}" ]
+  then
+    exit 0
+  fi
+
+  # retrieving command
+  command=$( cat "${lfrcMenu}" | grep . | sed -n "${itemNr}p" | sed 's/^[^|]*| //g' )
+
+  echo "Executing the following command: [${command}]"
+  sh -c "${command}"
+}}
+
+cmd findFiles ${{
+  text=$( bash -c -i 'inputBox "Find files" "Enter file/dir name to find:"' )
+
+  if [ -z "$text" ]
+  then
+    exit 0
+  fi
+
+  counter=0
+  find . 2>/dev/null | grep "${text}" | while read
+  do
+    ((counter++))
+    printf "${counter}) ${REPLY}\n"
+  done | less +/${text}
+}}
+
+cmd findInFiles ${{
+  text=$( bash -c -i 'inputBox "Find IN files" "Enter text to find:"' )
+  if [ -z "$text" ]
+  then
+    exit 0
+  fi
+
+  counter=0
+  find . -type f | while read
+  do
+    grepped=
+    if grepped=$( cat "$REPLY" | grep "$text" 2>&1 )
+    then
+      ((counter++))
+      printf "${counter} $REPLY\n\t${grepped}\n\n"
+    fi
+  done | less +/${text}
+}}
+
+map f filter
+map v paste
+map p
+map x cut
+map i showDirInfo
+map . set hidden!
+map o !true
+
+map <enter> open
+map <esc> esc
+map <insert> :toggle; down
+map <f-3>  $ [ -f "${f}" ] && less "${f}" || :
+map <f-4> $ [ -f "${f}" ] && vi "${f}"
+map <f-5> copyAs
+map <f-8> $ pstree | less
+map <f-12> $set -x && code .
+map c copy
+map <a-c> copyNameToClipboard
+map <c-c> copyFullPathToClipboard
+map <delete> delete
+map <f-7> mkDir
+map <s-f-4> mkFile
+map <f-6> rename
+map <f-2> menu
+map <c-f> findFiles
+map <a-f> findInFiles
+
+# jump to dirs
+map <c-_> cd /
+map h cd ~
+map w cd ~/workspaces
+map t cd ~/tmp
+map d cd ~/Downloads
