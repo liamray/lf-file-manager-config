@@ -16,12 +16,16 @@ cmd showDirInfo ${{
 }}
 
 cmd esc ${{
+  set -e
+
   lf -remote 'send clear'
   lf -remote 'send setfilter'
   lf -remote 'send unselect'
 }}
 
 cmd copyAs ${{
+  set -e
+
   filePathShort=$( printf "${f}" | grep -o '.\{1,60\}$' )
   fileName=$( basename "${f}" )
   newName=$( whiptail --inputbox --title "Copy item" "Copy a [${filePathShort}] as:" "8" "78" "${fileName}" 3>&1 1>&2 2>&3 )
@@ -47,6 +51,8 @@ cmd copyAs ${{
 }}
 
 cmd copyNameToClipboard ${{
+  set -e
+
   # not ideal but works in most cases (todo: improve)
   item=$( printf "${fx}" | sed 's-^.*/--' )
 
@@ -57,6 +63,8 @@ cmd copyNameToClipboard ${{
 }}
 
 cmd copyFullPathToClipboard ${{
+  set -e
+
   case $(uname -s) in
       Linux*)     printf "${fx}" | xsel --clipboard;;
       Darwin*)    printf "${fx}" | pbcopy;;
@@ -64,12 +72,16 @@ cmd copyFullPathToClipboard ${{
 }}
 
 cmd pasteFile ${{
+  set -e
+
   lf -remote 'send paste'
   lf -remote 'send clear'
   lf -remote 'send unselect'
 }}
 
 cmd delete ${{
+  set -e
+
   #                           |  file name only | join lines
   fileNames=$( printf "${fx}" | sed 's-^.*/--'  | tr -s '\n' ','  )
 
@@ -87,6 +99,8 @@ cmd delete ${{
 }}
 
 cmd mkDir ${{
+  set -e
+
   dirName=$( whiptail --inputbox --title "New Directory" "Enter new directory name:" "8" "78" 3>&1 1>&2 2>&3 )
 
   if [ -n "$dirName" ]
@@ -97,6 +111,8 @@ cmd mkDir ${{
 }}
 
 cmd mkFile ${{
+  set -e
+
   fileName=$( whiptail --inputbox --title "New File" "Enter new file name:" "8" "78" 3>&1 1>&2 2>&3 )
 
   if [ -n "${fileName}" ]
@@ -110,6 +126,8 @@ cmd mkFile ${{
 }}
 
 cmd rename ${{
+  set -e
+
   shortName=$( basename "${f}" )
   newName=$( whiptail --inputbox --title "Rename an item" "Enter a new name:" "8" "78" "${shortName}" 3>&1 1>&2 2>&3 )
 
@@ -121,6 +139,8 @@ cmd rename ${{
 }}
 
 cmd menu ${{
+  set -e
+
   lfrcMenu="${HOME}/.config/lf/lfrc-menu.txt"
 
   if [ ! -f "${lfrcMenu}" ]
@@ -157,7 +177,9 @@ cmd menu ${{
 }}
 
 cmd findFiles ${{
-  text=$( bash -c -i 'inputBox "Find files" "Enter file/dir name to find:"' )
+  set -e
+
+  text=$( whiptail --inputbox --title "Find files" "Enter file/dir name to find:" "8" "78" 3>&1 1>&2 2>&3 )
 
   if [ -z "$text" ]
   then
@@ -165,30 +187,33 @@ cmd findFiles ${{
   fi
 
   counter=0
-  find . 2>/dev/null | grep "${text}" | while read
+  find . 2>/dev/null | grep "${text}" | while read REPLY
   do
-    ((counter++))
-    printf "${counter}) ${REPLY}\n"
+    counter=$((counter+1))
+    printf "${counter}) ${REPLY}\n" | tee /dev/stderr
   done | less +/${text}
 }}
 
 cmd findInFiles ${{
-  text=$( bash -c -i 'inputBox "Find IN files" "Enter text to find:"' )
+  set -e
+
+  text=$( whiptail --inputbox --title "Find IN files" "Enter text to find:" "8" "78" 3>&1 1>&2 2>&3 )
+
   if [ -z "$text" ]
   then
     exit 0
   fi
 
   counter=0
-  find . -type f | while read
+  find . -type f | while read REPLY
   do
     grepped=
-    if grepped=$( cat "$REPLY" | grep "$text" 2>&1 )
+    if grepped=$( cat "${REPLY}" | grep "${text}" 2>&1 )
     then
-      ((counter++))
-      printf "${counter} $REPLY\n\t${grepped}\n\n"
+      counter=$((counter+1))
+      printf "${counter} ${REPLY}\n\t${grepped}\n\n" | tee /dev/stderr
     fi
-  done | less +/${text}
+  done | less +/"${text}"
 }}
 
 map f filter
