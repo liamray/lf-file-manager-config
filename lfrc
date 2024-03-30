@@ -23,12 +23,12 @@ cmd esc ${{
   lf -remote 'send unselect'
 }}
 
-cmd copyAs ${{
+cmd makeACopy ${{
   set -e
 
   filePathShort=$( printf "${f}" | grep -o '.\{1,60\}$' )
   fileName=$( basename "${f}" )
-  newName=$( whiptail --inputbox --title "Copy item" "Copy a [${filePathShort}] as:" "8" "78" "${fileName}" 3>&1 1>&2 2>&3 )
+  newName=$( whiptail --inputbox --title "Make a copy" "Copy a [${filePathShort}] as:" "8" "78" "${fileName}" 3>&1 1>&2 2>&3 )
 
   if [ -z "${newName}" ] || [ "${newName}" = "${fileName}" ]
   then
@@ -129,7 +129,7 @@ cmd rename ${{
   set -e
 
   shortName=$( basename "${f}" )
-  newName=$( whiptail --inputbox --title "Rename an item" "Enter a new name:" "8" "78" "${shortName}" 3>&1 1>&2 2>&3 )
+  newName=$( whiptail --inputbox --title "Rename" "Enter a new name:" "8" "78" "${shortName}" 3>&1 1>&2 2>&3 )
 
   if [ -n "${newName}" ]
   then
@@ -216,9 +216,10 @@ cmd findInFiles ${{
   done | less +/"${text}"
 }}
 
-map f filter
-map v paste
 map p
+map f filter
+map c copy
+map v paste
 map x cut
 map i showDirInfo
 map . set hidden!
@@ -227,19 +228,17 @@ map o !true
 map <enter> open
 map <esc> esc
 map <insert> :toggle; down
-map <f-3>  $ [ -f "${f}" ] && less "${f}" || :
-map <f-4> $ [ -f "${f}" ] && vi "${f}"
-map <f-5> copyAs
-map <f-8> $ pstree | less
-map <f-12> $set -x && code .
-map c copy
 map <a-c> copyNameToClipboard
 map <c-c> copyFullPathToClipboard
 map <delete> delete
-map <f-7> mkDir
-map <s-f-4> mkFile
-map <f-6> rename
 map <f-2> menu
+map <f-3>  $ [ -f "${f}" ] && less "${f}" || :
+map <f-4> $ [ -f "${f}" ] && vi "${f}"
+map <f-5> makeACopy
+map <f-6> rename
+map <f-7> mkDir
+map <f-8> mkFile
+map <f-12> $ echo 'lf installation command goes here'
 map <c-f> findFiles
 map <a-f> findInFiles
 
@@ -249,3 +248,40 @@ map h cd ~
 map w cd ~/workspaces
 map t cd ~/tmp
 map d cd ~/Downloads
+
+
+####################### todo #######################
+: '
+- when xsel fails, popup a message with the text to copy
+- pass over existing lf shortcuts, also shortcuts of Luke (in regards of Shift+F4)
+- Ctrl + F*, Alt + F* combibation don't work in remote terminal
+- the Ctrl + / doesn't work in the killerkoda (browser terminal)
+- Ctrl+F5 - copy a CLI command to install lf with my conf
+- find a way to jump to the files found with Ctrl+F, Alt+F (jump to the exact place in the text)
+  - https://github.com/Traap/dotfiles/blob/master/bash/bin/fr  <-- rg + fzf for interractive find files and find in files
+  - make this script work under sh
+  - find for text: 'kind: Ingress'
+  - ability to jump in
+  - return to the last search (or previous)
+- setup.sh (linux, macos)
+  - lf, whiptail, xsel, lfrc, pstree, fzf, rg, update bashrc/zshrc
+  - os support: alpine linux (newt), red hat, macos, freebsd, all OSes in the cloud (AWS, GCP, Digital Ocean)
+  - readme - this will install the following utils...
+  - Ctrl+C, Alt+C won't work
+- set icons
+- set previewer for images
+- preview zip files
+
+- WindowsOS open it in gitbash ?
+- create dir, file, rename, edit - with sudo. may be with caps loop on? (bash: xset q | grep Caps)
+- Ctrl+C, Alt+C - one click - copy without quotes, second click - copy with quotes (etc)
+- remember my location | map <c-f-1> toggle | jump to that remembered location | map <a-f-1> toggle
+- shortcuts for Ctrl + PgUp/Down
+- save last searches (files and in files), F11 for show that (remember dir from where it was found)
+- when running lf first time with my config, suggest to view my lf video tutorial
+- recent dirs/most used dirs (Ctrl+F12)
+- my FarManager tutorial, see what can be improved here
+- see what config of others
+  - https://www.youtube.com/watch?v=2oWqD3JCXuI
+  - https://github.com/LukeSmithxyz/voidrice/blob/master/.config/lf/lfrc
+'
