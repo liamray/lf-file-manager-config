@@ -26,13 +26,16 @@ cmd esc ${{
 cmd makeACopy ${{
   set -e
 
+  if [ -z "${f}" ] || [ ! -e "${f}" ]
+  then
+    return
+  fi
+
   filePathShort=$( printf "${f}" | grep -o '.\{1,60\}$' )
   fileName=$( basename "${f}" )
-  newName=$( whiptail --inputbox --title "Make a copy" "Copy a [${filePathShort}] as:" "8" "78" "${fileName}" 3>&1 1>&2 2>&3 )
-
-  if [ -z "${newName}" ] || [ "${newName}" = "${fileName}" ]
+  if ! newName=$( whiptail --inputbox --title "Make a copy" "Copy a [${filePathShort}] as:" "8" "78" "${fileName}" 3>&1 1>&2 2>&3 ) || [ -z "${newName}" ] || [ "${newName}" = "${fileName}" ]
   then
-    exit 0
+    return
   fi
 
   if [ -f "${f}" ]
@@ -82,6 +85,11 @@ cmd pasteFile ${{
 cmd delete ${{
   set -e
 
+  if [ -z "${fx}" ] || [ -z "${fx}" ]
+  then
+    return
+  fi
+
   #                           |  file name only | join lines
   fileNames=$( printf "${fx}" | sed 's-^.*/--'  | tr -s '\n' ','  )
 
@@ -101,41 +109,46 @@ cmd delete ${{
 cmd mkDir ${{
   set -e
 
-  dirName=$( whiptail --inputbox --title "New Directory" "Enter new directory name:" "8" "78" 3>&1 1>&2 2>&3 )
-
-  if [ -n "$dirName" ]
+  if ! dirName=$( whiptail --inputbox --title "New Directory" "Enter new directory name:" "8" "78" 3>&1 1>&2 2>&3 ) || [ -z "$dirName" ]
   then
-    mkdir "$dirName"
-    lf -remote "send select \"$dirName\""
+    return
   fi
+
+  mkdir "$dirName"
+  lf -remote "send select \"$dirName\""
 }}
 
 cmd mkFile ${{
   set -e
 
-  fileName=$( whiptail --inputbox --title "New File" "Enter new file name:" "8" "78" 3>&1 1>&2 2>&3 )
-
-  if [ -n "${fileName}" ]
+  if ! fileName=$( whiptail --inputbox --title "New File" "Enter new file name:" "8" "78" 3>&1 1>&2 2>&3 ) || [ -z "${fileName}" ]
   then
-    vi "${fileName}"
-    if [ -f "${fileName}" ]
-    then
-      lf -remote "send select \"${fileName}\""
-    fi
+    return
+  fi
+
+  vi "${fileName}"
+  if [ -f "${fileName}" ]
+  then
+    lf -remote "send select \"${fileName}\""
   fi
 }}
 
 cmd rename ${{
   set -e
 
-  shortName=$( basename "${f}" )
-  newName=$( whiptail --inputbox --title "Rename" "Enter a new name:" "8" "78" "${shortName}" 3>&1 1>&2 2>&3 )
-
-  if [ -n "${newName}" ]
+  if [ -z "${f}" ] || [ ! -e "${f}" ]
   then
-    mv "${shortName}" "${newName}"
-    lf -remote "send select \"${newName}\""
+    return
   fi
+
+  shortName=$( basename "${f}" )
+  if ! newName=$( whiptail --inputbox --title "Rename" "Enter a new name:" "8" "78" "${shortName}" 3>&1 1>&2 2>&3 ) || [ -z "${newName}" ]
+  then
+    return
+  fi
+
+  mv "${shortName}" "${newName}"
+  lf -remote "send select \"${newName}\""
 }}
 
 cmd menu ${{
@@ -163,10 +176,9 @@ cmd menu ${{
     set -- "$@" "${counter}" "${item}"
   done < "${lfrcMenu}"
 
-  itemNr=$( whiptail --title "Quick menu" --menu "Choose an option" 25 78 16 "${@}" 3>&1 1>&2 2>&3 )
-  if [ -z "${itemNr}" ]
+  if ! itemNr=$( whiptail --title "Quick menu" --menu "Choose an option" 25 78 16 "${@}" 3>&1 1>&2 2>&3 ) || [ -z "${itemNr}" ]
   then
-    exit 0
+    return
   fi
 
   # retrieving command
@@ -176,15 +188,32 @@ cmd menu ${{
   sh -c "${command}"
 }}
 
-cmd findFiles ${{
-  set -e
-
-  text=$( whiptail --inputbox --title "Find files" "Enter file/dir name to find:" "8" "78" 3>&1 1>&2 2>&3 )
-
-  if [ -z "$text" ]
+cmd viewFile ${{
+  if [ -n "${f}" ] && [ -f "${f}" ]
   then
-    exit 0
+    less "${f}" || :
   fi
+}}
+
+cmd editFile ${{
+  if  [ -n "${f}" ] && [ -f "${f}" ]
+  then
+    vi "${f}"
+  fi
+}}
+
+cmd findFiles ${{
+  set -ex
+
+  itemPath="${LF_SETTINGS_DIR}/last-find-files-text"
+  text=$( cat "${itemPath}" || : )
+
+  if ! text=$( whiptail --inputbox --title "Find files" "Enter file/dir name to find:" "8" "78" "${text}" 3>&1 1>&2 2>&3 ) || [ -z "$text" ]
+  then
+    return
+  fi
+
+  printf "${text}" > "${itemPath}"
 
   counter=0
   find . 2>/dev/null | grep "${text}" | while read REPLY
@@ -197,12 +226,15 @@ cmd findFiles ${{
 cmd findInFiles ${{
   set -e
 
-  text=$( whiptail --inputbox --title "Find IN files" "Enter text to find:" "8" "78" 3>&1 1>&2 2>&3 )
+  itemPath="${LF_SETTINGS_DIR}/last-find-in-files-text"
+  text=$( cat "${itemPath}" || : )
 
-  if [ -z "$text" ]
+  if ! text=$( whiptail --inputbox --title "Find IN files" "Enter text to find:" "8" "78" "${text}" 3>&1 1>&2 2>&3 ) || [ -z "$text" ]
   then
-    exit 0
+    return
   fi
+
+  printf "${text}" > "${itemPath}"
 
   counter=0
   find . -type f | while read REPLY
@@ -232,8 +264,8 @@ map <a-c> copyNameToClipboard
 map <c-c> copyFullPathToClipboard
 map <delete> delete
 map <f-2> menu
-map <f-3>  $ [ -f "${f}" ] && less "${f}" || :
-map <f-4> $ [ -f "${f}" ] && vi "${f}"
+map <f-3> viewFile
+map <f-4> editFile
 map <f-5> makeACopy
 map <f-6> rename
 map <f-7> mkDir
@@ -249,39 +281,4 @@ map w cd ~/workspaces
 map t cd ~/tmp
 map d cd ~/Downloads
 
-
-####################### todo #######################
-: '
-- when xsel fails, popup a message with the text to copy
-- pass over existing lf shortcuts, also shortcuts of Luke (in regards of Shift+F4)
-- Ctrl + F*, Alt + F* combibation don't work in remote terminal
-- the Ctrl + / doesn't work in the killerkoda (browser terminal)
-- Ctrl+F5 - copy a CLI command to install lf with my conf
-- find a way to jump to the files found with Ctrl+F, Alt+F (jump to the exact place in the text)
-  - https://github.com/Traap/dotfiles/blob/master/bash/bin/fr  <-- rg + fzf for interractive find files and find in files
-  - make this script work under sh
-  - find for text: 'kind: Ingress'
-  - ability to jump in
-  - return to the last search (or previous)
-- setup.sh (linux, macos)
-  - lf, whiptail, xsel, lfrc, pstree, fzf, rg, update bashrc/zshrc
-  - os support: alpine linux (newt), red hat, macos, freebsd, all OSes in the cloud (AWS, GCP, Digital Ocean)
-  - readme - this will install the following utils...
-  - Ctrl+C, Alt+C won't work
-- set icons
-- set previewer for images
-- preview zip files
-
-- WindowsOS open it in gitbash ?
-- create dir, file, rename, edit - with sudo. may be with caps loop on? (bash: xset q | grep Caps)
-- Ctrl+C, Alt+C - one click - copy without quotes, second click - copy with quotes (etc)
-- remember my location | map <c-f-1> toggle | jump to that remembered location | map <a-f-1> toggle
-- shortcuts for Ctrl + PgUp/Down
-- save last searches (files and in files), F11 for show that (remember dir from where it was found)
-- when running lf first time with my config, suggest to view my lf video tutorial
-- recent dirs/most used dirs (Ctrl+F12)
-- my FarManager tutorial, see what can be improved here
-- see what config of others
-  - https://www.youtube.com/watch?v=2oWqD3JCXuI
-  - https://github.com/LukeSmithxyz/voidrice/blob/master/.config/lf/lfrc
-'
+map r $ echo ${LF_SETTINGS_DIR}
