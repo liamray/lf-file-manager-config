@@ -28,20 +28,21 @@ cmd makeACopy ${{
 
   if [ -z "${f}" ] || [ ! -e "${f}" ]
   then
-    return
+    exit 0
   fi
 
   filePathShort=$( printf "${f}" | grep -o '.\{1,60\}$' )
   fileName=$( basename "${f}" )
   if ! newName=$( whiptail --inputbox --title "Make a copy" "Copy a [${filePathShort}] as:" "8" "78" "${fileName}" 3>&1 1>&2 2>&3 ) || [ -z "${newName}" ] || [ "${newName}" = "${fileName}" ]
   then
-    return
+    exit 0
   fi
 
   if [ -f "${f}" ]
   then
     cp "${f}" "${newName}"
     lf -remote "send select \"${newName}\""
+    printf "\tMade a copy of the [${fileName}] file as [${newName}] in the [${PWD}] directory\n"
     exit 0
   fi
 
@@ -49,6 +50,7 @@ cmd makeACopy ${{
   then
     cp -r "${f}" "${newName}"
     lf -remote "send select \"${newName}\""
+    printf "\tMade a copy of the [${fileName}] directory as [${newName}] in the [${PWD}] directory\n"
     exit 0
   fi
 }}
@@ -59,19 +61,33 @@ cmd copyNameToClipboard ${{
   # not ideal but works in most cases (todo: improve)
   item=$( printf "${fx}" | sed 's-^.*/--' )
 
+  alias c='false'
+
   case $(uname -s) in
-      Linux*)     printf "${item}" | xsel --clipboard;;
-      Darwin*)    printf "${item}" | pbcopy;;
-  esac  
+      Linux*)     alias c='xsel --clipboard';;
+      Darwin*)    alias c='pbcopy';;
+  esac
+
+  if ! printf "${item}" | c
+  then
+    whiptail --title "Copy to the clipboard is not supported. Please copy this text manually." --msgbox "${item}" 8 78
+  fi
 }}
 
 cmd copyFullPathToClipboard ${{
   set -e
 
+  alias c='false'
+
   case $(uname -s) in
-      Linux*)     printf "${fx}" | xsel --clipboard;;
-      Darwin*)    printf "${fx}" | pbcopy;;
+      Linux*)     alias c='xsel --clipboard';;
+      Darwin*)    alias c='pbcopy';;
   esac
+
+  if ! printf "${fx}" | c
+  then
+    whiptail --title "Copy to the clipboard is not supported. Please copy this text manually." --msgbox "${fx}" 8 78
+  fi
 }}
 
 cmd pasteFile ${{
@@ -87,7 +103,7 @@ cmd delete ${{
 
   if [ -z "${fx}" ] || [ -z "${fx}" ]
   then
-    return
+    exit 0
   fi
 
   #                           |  file name only | join lines
@@ -95,14 +111,14 @@ cmd delete ${{
 
   # fileNames length > 60? 
   if [ "${#fileNames}" -gt 60 ]
-  then
+    then
     fileNames=$( printf "${fileNames}" | grep -o '.\{1,60\}$' | xargs printf "...%s" )
   fi
 
   if whiptail --title "Delete confirmation" --yesno --defaultno "Are you sure you want to delete a [${fileNames}] item(s)?" "8" "78" 3>&1 1>&2 2>&3
   then
     rm -rf -- ${fx}
-    printf "\tThe following item(s) has been deleted:\n%s\n" "${fx}"
+    printf "\tDeleted the following items:\n%s\n" "${fx}"
   fi
 }}
 
@@ -111,10 +127,11 @@ cmd mkDir ${{
 
   if ! dirName=$( whiptail --inputbox --title "New Directory" "Enter new directory name:" "8" "78" 3>&1 1>&2 2>&3 ) || [ -z "$dirName" ]
   then
-    return
+    exit 0
   fi
 
-  mkdir "$dirName"
+  mkdir "${dirName}"
+  printf "\tCreated a [${dirName}] directory in the [${PWD}] directory\n"
   lf -remote "send select \"$dirName\""
 }}
 
@@ -123,12 +140,13 @@ cmd mkFile ${{
 
   if ! fileName=$( whiptail --inputbox --title "New File" "Enter new file name:" "8" "78" 3>&1 1>&2 2>&3 ) || [ -z "${fileName}" ]
   then
-    return
+    exit 0
   fi
 
   vi "${fileName}"
   if [ -f "${fileName}" ]
   then
+    printf "\tCreated a [${fileName}] file in the [${PWD}] directory\n"
     lf -remote "send select \"${fileName}\""
   fi
 }}
@@ -138,16 +156,17 @@ cmd rename ${{
 
   if [ -z "${f}" ] || [ ! -e "${f}" ]
   then
-    return
+    exit 0
   fi
 
   shortName=$( basename "${f}" )
   if ! newName=$( whiptail --inputbox --title "Rename" "Enter a new name:" "8" "78" "${shortName}" 3>&1 1>&2 2>&3 ) || [ -z "${newName}" ]
   then
-    return
+    exit 0
   fi
 
   mv "${shortName}" "${newName}"
+  printf "\tRenamed a [${shortName}] to [${newName}] in the [${PWD}] directory\n"
   lf -remote "send select \"${newName}\""
 }}
 
@@ -178,7 +197,7 @@ cmd menu ${{
 
   if ! itemNr=$( whiptail --title "Quick menu" --menu "Choose an option" 25 78 16 "${@}" 3>&1 1>&2 2>&3 ) || [ -z "${itemNr}" ]
   then
-    return
+    exit 0
   fi
 
   # retrieving command
@@ -210,7 +229,7 @@ cmd findFiles ${{
 
   if ! text=$( whiptail --inputbox --title "Find files" "Enter file/dir name to find:" "8" "78" "${text}" 3>&1 1>&2 2>&3 ) || [ -z "$text" ]
   then
-    return
+    exit 0
   fi
 
   printf "${text}" > "${itemPath}"
@@ -220,7 +239,7 @@ cmd findFiles ${{
   do
     counter=$((counter+1))
     printf "${counter}) ${REPLY}\n" | tee /dev/stderr
-  done | less +/${text}
+  done | less +/"${text}"
 }}
 
 cmd findInFiles ${{
@@ -231,7 +250,7 @@ cmd findInFiles ${{
 
   if ! text=$( whiptail --inputbox --title "Find IN files" "Enter text to find:" "8" "78" "${text}" 3>&1 1>&2 2>&3 ) || [ -z "$text" ]
   then
-    return
+    exit 0
   fi
 
   printf "${text}" > "${itemPath}"
@@ -248,21 +267,52 @@ cmd findInFiles ${{
   done | less +/"${text}"
 }}
 
+cmd rememberLocation ${{
+  printf "${PWD}" > "${LF_SETTINGS_DIR}/go-back-path"
+  printf "\tRemembered the [${PWD}] location\n"
+}}
+
+cmd copyItem ${{
+  printf "${PWD}" > "${LF_SETTINGS_DIR}/go-back-path"
+  lf -remote 'send copy'
+}}
+
+cmd cutItem ${{
+  printf "${PWD}" > "${LF_SETTINGS_DIR}/go-back-path"
+  lf -remote 'send cut'
+}}
+
+cmd goBack ${{
+  goBackPath=$( cat "${LF_SETTINGS_DIR}/go-back-path" || : )
+  if [ -n "${goBackPath}" ] && [ -d "${goBackPath}" ]
+  then
+    lf -remote "send cd \"${goBackPath}\""
+  fi
+}}
+
 map p
-map f filter
-map c copy
+map r rememberLocation
+map f
+map fl $ echo 1
+map ff $ echo 2
+map fi $ echo 3
+map c copyItem
 map v paste
-map x cut
+map x cutItem
 map i showDirInfo
 map . set hidden!
 map o !true
 
-map <enter> open
-map <esc> esc
-map <insert> :toggle; down
 map <a-c> copyNameToClipboard
 map <c-c> copyFullPathToClipboard
 map <delete> delete
+map <c-f> findFiles
+map <a-f> findInFiles
+
+map <enter> open
+map <esc> esc
+map <insert> :toggle; down
+
 map <f-2> menu
 map <f-3> viewFile
 map <f-4> editFile
@@ -271,14 +321,11 @@ map <f-6> rename
 map <f-7> mkDir
 map <f-8> mkFile
 map <f-12> $ echo 'lf installation command goes here'
-map <c-f> findFiles
-map <a-f> findInFiles
 
 # jump to dirs
-map <c-_> cd /
+map \\ cd /
 map h cd ~
 map w cd ~/workspaces
 map t cd ~/tmp
 map d cd ~/Downloads
-
-map r $ echo ${LF_SETTINGS_DIR}
+map <backspace2> goBack
