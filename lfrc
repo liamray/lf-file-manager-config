@@ -42,7 +42,7 @@ cmd makeACopy ${{
   then
     cp "${f}" "${newName}"
     lf -remote "send select \"${newName}\""
-    printf "\tMade a copy of the [${fileName}] file as [${newName}] in the [${PWD}] directory\n"
+    printf "*** Made a copy of the [${fileName}] file as [${newName}] in the [${PWD}] directory\n"
     exit 0
   fi
 
@@ -50,7 +50,7 @@ cmd makeACopy ${{
   then
     cp -r "${f}" "${newName}"
     lf -remote "send select \"${newName}\""
-    printf "\tMade a copy of the [${fileName}] directory as [${newName}] in the [${PWD}] directory\n"
+    printf "*** Made a copy of the [${fileName}] directory as [${newName}] in the [${PWD}] directory\n"
     exit 0
   fi
 }}
@@ -118,7 +118,7 @@ cmd delete ${{
   if whiptail --title "Delete confirmation" --yesno --defaultno "Are you sure you want to delete a [${fileNames}] item(s)?" "8" "78" 3>&1 1>&2 2>&3
   then
     rm -rf -- ${fx}
-    printf "\tDeleted the following items:\n%s\n" "${fx}"
+    printf "*** Deleted the following items:\n%s\n" "${fx}"
   fi
 }}
 
@@ -131,7 +131,7 @@ cmd mkDir ${{
   fi
 
   mkdir "${dirName}"
-  printf "\tCreated a [${dirName}] directory in the [${PWD}] directory\n"
+  printf "*** Created a [${dirName}] directory in the [${PWD}] directory\n"
   lf -remote "send select \"$dirName\""
 }}
 
@@ -146,7 +146,7 @@ cmd mkFile ${{
   vi "${fileName}"
   if [ -f "${fileName}" ]
   then
-    printf "\tCreated a [${fileName}] file in the [${PWD}] directory\n"
+    printf "*** Created a [${fileName}] file in the [${PWD}] directory\n"
     lf -remote "send select \"${fileName}\""
   fi
 }}
@@ -166,7 +166,7 @@ cmd rename ${{
   fi
 
   mv "${shortName}" "${newName}"
-  printf "\tRenamed a [${shortName}] to [${newName}] in the [${PWD}] directory\n"
+  printf "*** Renamed a [${shortName}] to [${newName}] in the [${PWD}] directory\n"
   lf -remote "send select \"${newName}\""
 }}
 
@@ -222,7 +222,7 @@ cmd editFile ${{
 }}
 
 cmd findFiles ${{
-  set -ex
+  set -e
 
   itemPath="${LF_SETTINGS_DIR}/last-find-files-text"
   text=$( cat "${itemPath}" || : )
@@ -269,7 +269,7 @@ cmd findInFiles ${{
 
 cmd rememberLocation ${{
   printf "${PWD}" > "${LF_SETTINGS_DIR}/go-back-path"
-  printf "\tRemembered the [${PWD}] location\n"
+  printf "*** Remembered the [${PWD}] location\n"
 }}
 
 cmd copyItem ${{
@@ -286,6 +286,7 @@ cmd goBack ${{
   goBackPath=$( cat "${LF_SETTINGS_DIR}/go-back-path" || : )
   if [ -n "${goBackPath}" ] && [ -d "${goBackPath}" ]
   then
+    printf "*** Returning back to the remembered location [${goBackPath}] from the [${PWD}]\n"
     lf -remote "send cd \"${goBackPath}\""
   fi
 }}
