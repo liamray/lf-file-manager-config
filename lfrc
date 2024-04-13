@@ -303,7 +303,8 @@ cmd selfInstallCommand ${{
 
   if ! printf "${theCommand}" | c
   then
-    whiptail --title "Copy to the clipboard is not supported. Please copy this text manually." --msgbox "${theCommand}" 8 78
+    lf -remote 'send echo Cannot copy the self installation command to the clipboard. Copy it manually from the terminal.'
+    printf "*** Self installation command:\n\t[${theCommand}]\n"
   fi  
 }}
 
