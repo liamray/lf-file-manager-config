@@ -303,7 +303,7 @@ cmd selfInstallCommand ${{
 
   if ! printf "${theCommand}" | c
   then
-    whiptail --title "Copy to the clipboard is not supported. Please copy this text manually." --msgbox "${item}" 8 78
+    whiptail --title "Copy to the clipboard is not supported. Please copy this text manually." --msgbox "${theCommand}" 8 78
   fi  
 }}
 
