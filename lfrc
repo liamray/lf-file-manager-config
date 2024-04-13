@@ -291,6 +291,22 @@ cmd goBack ${{
   fi
 }}
 
+cmd selfInstallCommand ${{
+  theCommand='wget -O /tmp/setup.sh https://raw.githubusercontent.com/liamray/fm/main/setup.sh && chmod +x /tmp/setup.sh && . /tmp/setup.sh && chmod +x /tmp/setup.sh && . /tmp/setup.sh'
+
+  alias c='false'
+
+  case $(uname -s) in
+      Linux*)     alias c='xsel --clipboard';;
+      Darwin*)    alias c='pbcopy';;
+  esac
+
+  if ! printf "${theCommand}" | c
+  then
+    whiptail --title "Copy to the clipboard is not supported. Please copy this text manually." --msgbox "${item}" 8 78
+  fi  
+}}
+
 map p
 map r rememberLocation
 map f
@@ -321,7 +337,7 @@ map <f-5> makeACopy
 map <f-6> rename
 map <f-7> mkDir
 map <f-8> mkFile
-map <f-12> $ echo 'lf installation command goes here'
+map <f-12> selfInstallCommand
 
 # jump to dirs
 map \\ cd /
