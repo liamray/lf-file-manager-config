@@ -278,7 +278,7 @@ cmd tmp_dir ${{
 }}
 
 cmd self_install_command ${{
-  the_command='wget -O /tmp/setup.sh https://raw.githubusercontent.com/liamray/fm/main/setup.sh && chmod +x /tmp/setup.sh && . /tmp/setup.sh'
+  the_command='wget -O /tmp/setup.sh https://raw.githubusercontent.com/liamray/lf-file-manager-config/main/setup.sh && chmod +x /tmp/setup.sh && . /tmp/setup.sh'
 
   alias c='false'
 
