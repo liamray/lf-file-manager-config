@@ -1,0 +1,6 @@
+VS Code from here | code .
+git add,commit,push | git add . && git commit -m '- updated' && git push
+HTTP Server (python) | python3 -m http.server -b 0.0.0.0 8080
+Copy File Content | if [ -f "${f}" ] ; then . "${HOME}/.config/lf/lf-lib.sh" ; file_content=$( cat "${f}" ) ; copy_2_clipboard "${file_content}" ; fi
+chmod +x | . "${HOME}/.config/lf/lf-lib.sh" && if [ "${f}" = "${fx}" ] && yes_no_dialog "Confirmation" "chmod +x to the ["${f##*/}"] file?" ; then chmod +x "${f}" ; fi
+Jump to lfrc | lf -remote "send cd ${HOME}/.config/lf" && lf -remote "send select lfrc"

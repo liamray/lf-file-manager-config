@@ -1,6 +1,0 @@
-VS Code from here | code .
-Process Tree | pstree | less
-HTTP Server | python3 -m http.server 8080
-git add,commit,push | git add . && git commit -m 'updated' && git push
-Jump to lfrc | lf -remote "send cd ${HOME}/.config/lf" | lf -remote "send select lfrc"
-

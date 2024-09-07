@@ -1,5 +1,8 @@
 #!/bin/sh
 
+CONFIG_FILE="main.zip"
+CONFIG_SOURCE='https://github.com/liamray/fm/archive/refs/heads/${CONFIG_FILE}'
+
 set -eux
 if ! which sudo >/dev/null
 then
@@ -7,12 +10,12 @@ then
 fi
 
 init() {
-        tmpDir=$( mktemp -d )
-        trap "rm -rf ${tmpDir}" EXIT
-        cd "${tmpDir}"
+        tmp_dir=$( mktemp -d )
+        trap "rm -rf ${tmp_dir}" EXIT
+        cd "${tmp_dir}"
 }
 
-downloadBinaries() {
+download_binaries() {
         # macos
         if which brew >/dev/null
         then
@@ -24,8 +27,8 @@ downloadBinaries() {
         # debian*
         if which apt >/dev/null
         then
-                sudo apt update
-                sudo apt install unzip wget whiptail xsel less vim psmisc -y
+                sudo apt -qq update
+                sudo DEBIAN_FRONTEND=noninteractive apt -qq install zip unzip wget xsel vim fzf ripgrep less jq -y
                 return
         fi
 
@@ -34,7 +37,7 @@ downloadBinaries() {
         then
                 # todo: test it
                 sudo yum update
-                sudo yum install unzip wget whiptail xsel vim less psmisc -y
+                sudo yum install zip unzip zip unzip wget xsel vim fzf ripgrep less jq -y
                 return
         fi
 
@@ -46,18 +49,21 @@ downloadBinaries() {
         fi
 }
 
-downloadConfig() {        
-        wget "https://github.com/liamray/fm/archive/refs/heads/main.zip"
-        unzip -j main.zip
-        rm -rf main.zip
-        lfDir="${HOME}/.config/lf"
-        mkdir -p "${lfDir}"
-        cp * "${lfDir}"
+download_config() {        
+        wget "${CONFIG_SOURCE}"
+
+        lf_dir="${HOME}/.config/lf"
+        mkdir -p "${lf_dir}"
+
+        unzip -j "${CONFIG_FILE}" -d "${lf_dir}"
 }
 
-installlf() {
+install_lf() {
         # downloading
-        wget 'https://github.com/gokcehan/lf/releases/download/r30/lf-linux-386.tar.gz'
+        latest_lf_url=$( curl -s https://api.github.com/repos/gokcehan/lf/releases/latest | jq -r '.assets[] | select(.name == "lf-linux-386.tar.gz") | .browser_download_url' )
+        wget "${latest_lf_url}"
+
+        # extracting and moving
         tar -zxvf lf-linux-386.tar.gz
         sudo mv ./lf /usr/local/bin
 
@@ -71,7 +77,7 @@ installlf() {
         fi
 
         # the original lf path which will be replaced with the lf() function
-        lfPath=$( which lf )
+        lf_runner=$( which lf )
 
         # adding the lf() function to the .profile
         cat << EOF >> "${profile}"
@@ -95,12 +101,15 @@ ex=01;32:\
 "
 
 lf() {
-        export LF_SETTINGS_DIR="\${HOME}/.config/lf/.settings"
-        mkdir -p "\${LF_SETTINGS_DIR}"
-        lfLastPath="\${LF_SETTINGS_DIR}/last-path"
-        ${lfPath} -last-dir-path="\${lfLastPath}"
-        lastPath=\$( cat "\${lfLastPath}" )
-        cd "\${lastPath}"
+        # this file stores a recent directory location in lf
+        lf_last_path="\${HOME}/.config/lf/.lastpath"
+
+        # running the lf
+        ${lf_runner} -last-dir-path="\${lf_last_path}"
+
+        # changing dir
+        lf_path=\$( cat "\${lf_last_path}" )
+        cd "\${lf_path}"
 }
 
 EOF
@@ -111,6 +120,6 @@ EOF
 }
 
 init
-downloadBinaries
-downloadConfig
-installlf
+download_binaries
+download_config
+install_lf

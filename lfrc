@@ -3,15 +3,27 @@ set icons true
 set hidden true
 set ignorecase true
 set ifs "\n"
+set info size
+set mouse true
+set promptfmt "\033[32;1m%u@\033[34;1m%d\033[0m"
+set previewer ~/.config/lf/preview.sh
+clearmaps
 
-cmd showDirInfo ${{
-  size=$( du -csh ${fx} | grep 'total$' | sed 's/\t.*//g' )
+cmd on-cd ${{
+  # recording directories for recent directories view
+  recents_dir_file="${HOME}/.config/lf/.recentlocations"
+  touch "${recents_dir_file}"
+  without_item=$( cat "${recents_dir_file}" | grep -v "^${PWD}$" )
 
-  if [ "${f}" = "${fx}" ]
+  printf "${PWD}\n${without_item}\n" | head -100 > "${recents_dir_file}"
+}}
+
+cmd recent_locations ${{
+  locations=$( cat "${HOME}/.config/lf/.recentlocations" || : )
+  cd2=$( printf "${locations}" | fzf --layout=reverse-list --info=hidden --border=rounded --border-label=' Recent locations ' || : )
+  if [ -d "${cd2}" ]
   then
-    lf -remote "send echo Size = ${size}"
-  else
-    lf -remote "send echo Total Size = ${size}"
+    lf -remote "send cd \"${cd2}\""  
   fi
 }}
 
@@ -23,7 +35,15 @@ cmd esc ${{
   lf -remote 'send unselect'
 }}
 
-cmd makeACopy ${{
+cmd open_current_dir ${{
+  open "$( dirname ${f} )"
+}}
+
+cmd f_menu ${{
+  menu=$( printf 'F2\nF3\nF4\nF5\nF6\nF7\nF8\nF12' | fzf --layout=reverse-list --info=hidden --border=rounded --border-label=' F-keys ' || : )
+}}
+
+cmd make_a_copy ${{
   set -e
 
   if [ -z "${f}" ] || [ ! -e "${f}" ]
@@ -31,71 +51,65 @@ cmd makeACopy ${{
     exit 0
   fi
 
-  filePathShort=$( printf "${f}" | grep -o '.\{1,60\}$' )
-  fileName=$( basename "${f}" )
-  if ! newName=$( whiptail --inputbox --title "Make a copy" "Copy a [${filePathShort}] as:" "8" "78" "${fileName}" 3>&1 1>&2 2>&3 ) || [ -z "${newName}" ] || [ "${newName}" = "${fileName}" ]
+  file_path_short=$( printf "${f}" | grep -o '.\{1,60\}$' )
+  file_name=$( basename "${f}" )
+
+  . "${HOME}/.config/lf/lf-lib.sh"
+
+  if ! new_name=$( read_input "Copy a [${file_path_short}] as:" "" "${file_name}" ) || [ -z "${new_name}" ] || [ "${new_name}" = "${file_name}" ]
   then
     exit 0
   fi
 
   if [ -f "${f}" ]
   then
-    cp "${f}" "${newName}"
-    lf -remote "send select \"${newName}\""
-    printf "*** Made a copy of the [${fileName}] file as [${newName}] in the [${PWD}] directory\n"
+    cp "${f}" "${new_name}"
+    lf -remote "send select \"${new_name}\""
+    printf "*** Made a copy of the [${file_name}] file as [${new_name}] in the [${PWD}] directory\n"
     exit 0
   fi
 
   if [ -d "${f}" ]
   then
-    cp -r "${f}" "${newName}"
-    lf -remote "send select \"${newName}\""
-    printf "*** Made a copy of the [${fileName}] directory as [${newName}] in the [${PWD}] directory\n"
+    cp -r "${f}" "${new_name}"
+    lf -remote "send select \"${new_name}\""
+    printf "*** Made a copy of the [${file_name}] directory as [${new_name}] in the [${PWD}] directory\n"
     exit 0
   fi
 }}
 
-cmd copyNameToClipboard ${{
+cmd copy_item_name_2_clipboard ${{
   set -e
 
-  # not ideal but works in most cases (todo: improve)
-  item=$( printf "${fx}" | sed 's-^.*/--' )
+  . "${HOME}/.config/lf/lf-lib.sh"
 
-  alias c='false'
-
-  case $(uname -s) in
-      Linux*)     alias c='xsel --clipboard';;
-      Darwin*)    alias c='pbcopy';;
-  esac
-
-  if ! printf "${item}" | c
+  # get the clipboard
+  if ! current_item=$( read_from_clipboard )
   then
-    whiptail --title "Copy to the clipboard is not supported. Please copy this text manually." --msgbox "${item}" 8 78
+    message_box "Copy from the clipboard is not supported"
+    exit
   fi
-}}
 
-cmd copyFullPathToClipboard ${{
-  set -e
+  # what is in the clipboard?
+  short_name=$( printf "${fx}" | sed 's-^.*/--' )
+  full_name="${fx}"
 
-  alias c='false'
-
-  case $(uname -s) in
-      Linux*)     alias c='xsel --clipboard';;
-      Darwin*)    alias c='pbcopy';;
-  esac
-
-  if ! printf "${fx}" | c
+  # inverting the content
+  if [ "${full_name}" = "${current_item}" ]
   then
-    whiptail --title "Copy to the clipboard is not supported. Please copy this text manually." --msgbox "${fx}" 8 78
+    item="${short_name}"
+  else
+    item="${full_name}"
   fi
-}}
 
-cmd pasteFile ${{
-  set -e
+  if ! copy_2_clipboard "${item}"
+  then
+    message_box "Copy to the clipboard is not supported. Please copy this text manually:\n\n${item}"
+    exit
+  fi
 
-  lf -remote 'send paste'
-  lf -remote 'send clear'
-  lf -remote 'send unselect'
+  printf "*** Copied the following to the clipboard: [${item}]\n"
+  lf -remote "send echomsg Copied the [${item}] item path to the clipboard"
 }}
 
 cmd delete ${{
@@ -107,47 +121,54 @@ cmd delete ${{
   fi
 
   #                           |  file name only | join lines
-  fileNames=$( printf "${fx}" | sed 's-^.*/--'  | tr -s '\n' ','  )
+  file_names=$( printf "${fx}" | sed 's-^.*/--'  | tr -s '\n' ','  )
 
-  # fileNames length > 60? 
-  if [ "${#fileNames}" -gt 60 ]
+  # file_names length > 60? 
+  if [ "${#file_names}" -gt 60 ]
     then
-    fileNames=$( printf "${fileNames}" | grep -o '.\{1,60\}$' | xargs printf "...%s" )
+    file_names=$( printf "${file_names}" | grep -o '.\{1,60\}$' | xargs printf "...%s" )
   fi
 
-  if whiptail --title "Delete confirmation" --yesno --defaultno "Are you sure you want to delete a [${fileNames}] item(s)?" "8" "78" 3>&1 1>&2 2>&3
+  . "${HOME}/.config/lf/lf-lib.sh"
+
+  if yes_no_dialog "Delete confirmation" "Are you sure you want to delete a [${file_names}] item(s)?"
   then
+    echo deleting...
     rm -rf -- ${fx}
     printf "*** Deleted the following items:\n%s\n" "${fx}"
   fi
 }}
 
-cmd mkDir ${{
+cmd mk_dir ${{
   set -e
 
-  if ! dirName=$( whiptail --inputbox --title "New Directory" "Enter new directory name:" "8" "78" 3>&1 1>&2 2>&3 ) || [ -z "$dirName" ]
+  . "${HOME}/.config/lf/lf-lib.sh"
+
+  if ! dir_name=$( read_input "New Directory" "Enter new directory name: " "" ) || [ -z "${dir_name}" ]
   then
     exit 0
   fi
 
-  mkdir "${dirName}"
-  printf "*** Created a [${dirName}] directory in the [${PWD}] directory\n"
-  lf -remote "send select \"$dirName\""
+  mkdir "${dir_name}"
+  printf "*** Created a [${dir_name}] directory in the [${PWD}] directory\n"
+  lf -remote "send select \"$dir_name\""
 }}
 
-cmd mkFile ${{
+cmd mk_file ${{
   set -e
 
-  if ! fileName=$( whiptail --inputbox --title "New File" "Enter new file name:" "8" "78" 3>&1 1>&2 2>&3 ) || [ -z "${fileName}" ]
+  . "${HOME}/.config/lf/lf-lib.sh"
+
+  if ! file_name=$( read_input "New File" "Enter new file name: " "" ) || [ -z "${file_name}" ]
   then
     exit 0
   fi
 
-  vi "${fileName}"
-  if [ -f "${fileName}" ]
+  vi "${file_name}"
+  if [ -f "${file_name}" ]
   then
-    printf "*** Created a [${fileName}] file in the [${PWD}] directory\n"
-    lf -remote "send select \"${fileName}\""
+    printf "*** Created a [${file_name}] file in the [${PWD}] directory\n"
+    lf -remote "send select \"${file_name}\""
   fi
 }}
 
@@ -159,140 +180,105 @@ cmd rename ${{
     exit 0
   fi
 
-  shortName=$( basename "${f}" )
-  if ! newName=$( whiptail --inputbox --title "Rename" "Enter a new name:" "8" "78" "${shortName}" 3>&1 1>&2 2>&3 ) || [ -z "${newName}" ]
+  . "${HOME}/.config/lf/lf-lib.sh"
+
+  short_name=$( basename "${f}" )
+  if ! new_name=$( read_input "Rename" "Enter a new name: " "${short_name}" ) || [ -z "${new_name}" ]
   then
     exit 0
   fi
 
-  mv "${shortName}" "${newName}"
-  printf "*** Renamed a [${shortName}] to [${newName}] in the [${PWD}] directory\n"
-  lf -remote "send select \"${newName}\""
+  mv "${short_name}" "${new_name}"
+  printf "*** Renamed a [${short_name}] to [${new_name}] in the [${PWD}] directory\n"
+  lf -remote "send select \"${new_name}\""
 }}
 
 cmd menu ${{
-  set -e
-
-  lfrcMenu="${HOME}/.config/lf/lfrc-menu.txt"
-
-  if [ ! -f "${lfrcMenu}" ]
-  then
-    echo "The quick menu [${lfrcMenu}] file not found"
-    exit 0
-  fi
-
-  counter=0
-  while read REPLY
-  do
-    if [ -z "${REPLY}" ]
-    then
-      continue
-    fi
-
-    counter=$(( counter + 1 ))
-
-    item=$( printf "${REPLY}" | sed 's/ |.*//g' )
-    set -- "$@" "${counter}" "${item}"
-  done < "${lfrcMenu}"
-
-  if ! itemNr=$( whiptail --title "Quick menu" --menu "Choose an option" 25 78 16 "${@}" 3>&1 1>&2 2>&3 ) || [ -z "${itemNr}" ]
-  then
-    exit 0
-  fi
-
-  # retrieving command
-  command=$( cat "${lfrcMenu}" | grep . | sed -n "${itemNr}p" | sed 's/^[^|]*| //g' )
-
-  echo "Executing the following command: [${command}]"
-  sh -c "${command}"
+    . "${HOME}/.config/lf/lf-lib.sh"
+    menu
 }}
 
-cmd viewFile ${{
+cmd view_file ${{
+  # file preview
   if [ -n "${f}" ] && [ -f "${f}" ]
   then
-    less "${f}" || :
+    bat -p --theme ansi --paging=always -f "${f}" || batcat -p --theme ansi --paging=always -f "${f}" || less "${f}" || :
+  fi
+
+  # show dir size
+  if [ -n "${f}" ] && [ -d "${f}" ]
+  then
+    lf -remote "send calcdirsize"      
   fi
 }}
 
-cmd editFile ${{
+cmd edit_file ${{
   if  [ -n "${f}" ] && [ -f "${f}" ]
   then
     vi "${f}"
   fi
 }}
 
-cmd findFiles ${{
-  set -e
+cmd find_files_case_on ${{
+  . "${HOME}/.config/lf/lf-lib.sh"
+  find_files
+}}
 
-  itemPath="${LF_SETTINGS_DIR}/last-find-files-text"
-  text=$( cat "${itemPath}" || : )
+cmd find_files_case_off ${{
+  . "${HOME}/.config/lf/lf-lib.sh"
+  set -x
+  find_files "-i"
+}}
 
-  if ! text=$( whiptail --inputbox --title "Find files" "Enter file/dir name to find:" "8" "78" "${text}" 3>&1 1>&2 2>&3 ) || [ -z "$text" ]
-  then
-    exit 0
+cmd find_in_files_case_on ${{
+  . "${HOME}/.config/lf/lf-lib.sh"
+  find_in_files
+}}
+
+cmd find_in_files_case_off ${{
+  . "${HOME}/.config/lf/lf-lib.sh"
+  find_in_files "-i"
+}}
+
+cmd zip ${{
+  set -eux
+  . "${HOME}/.config/lf/lf-lib.sh"
+
+  files=$( printf "${fx}" | sed 's-.*/--g' | tr -s "\n" " " )
+  if zip_name=$( read_input "Creating ZIP" "Zip file name: " "" )
+    then zip -r "${zip_name}" ${files}
   fi
-
-  printf "${text}" > "${itemPath}"
-
-  counter=0
-  find . 2>/dev/null | grep "${text}" | while read REPLY
-  do
-    counter=$((counter+1))
-    printf "${counter}) ${REPLY}\n" | tee /dev/stderr
-  done | less +/"${text}"
 }}
 
-cmd findInFiles ${{
-  set -e
-
-  itemPath="${LF_SETTINGS_DIR}/last-find-in-files-text"
-  text=$( cat "${itemPath}" || : )
-
-  if ! text=$( whiptail --inputbox --title "Find IN files" "Enter text to find:" "8" "78" "${text}" 3>&1 1>&2 2>&3 ) || [ -z "$text" ]
+cmd unzip ${{
+  set -eux
+  . "${HOME}/.config/lf/lf-lib.sh"
+  if [ "${f}" = "${fx}" ] && yes_no_dialog "Confirmation" "UnZip the ["${f##*/}"] file?"
   then
-    exit 0
+    unzip "${f}"
   fi
-
-  printf "${text}" > "${itemPath}"
-
-  counter=0
-  find . -type f | while read REPLY
-  do
-    grepped=
-    if grepped=$( cat "${REPLY}" | grep "${text}" 2>&1 )
-    then
-      counter=$((counter+1))
-      printf "${counter} ${REPLY}\n\t${grepped}\n\n" | tee /dev/stderr
-    fi
-  done | less +/"${text}"
 }}
 
-cmd rememberLocation ${{
-  printf "${PWD}" > "${LF_SETTINGS_DIR}/go-back-path"
-  printf "*** Remembered the [${PWD}] location\n"
-}}
-
-cmd copyItem ${{
-  printf "${PWD}" > "${LF_SETTINGS_DIR}/go-back-path"
+cmd copy_item ${{
   lf -remote 'send copy'
 }}
 
-cmd cutItem ${{
-  printf "${PWD}" > "${LF_SETTINGS_DIR}/go-back-path"
+cmd cut_item ${{
   lf -remote 'send cut'
 }}
 
-cmd goBack ${{
-  goBackPath=$( cat "${LF_SETTINGS_DIR}/go-back-path" || : )
-  if [ -n "${goBackPath}" ] && [ -d "${goBackPath}" ]
-  then
-    printf "*** Returning back to the remembered location [${goBackPath}] from the [${PWD}]\n"
-    lf -remote "send cd \"${goBackPath}\""
-  fi
+cmd workspace_dir ${{
+  . "${HOME}/.config/lf/lf-lib.sh"
+  gentle_change_dir "${HOME}/workspaces"
 }}
 
-cmd selfInstallCommand ${{
-  theCommand='wget -O /tmp/setup.sh https://raw.githubusercontent.com/liamray/fm/main/setup.sh && chmod +x /tmp/setup.sh && . /tmp/setup.sh && chmod +x /tmp/setup.sh && . /tmp/setup.sh'
+cmd tmp_dir ${{
+  . "${HOME}/.config/lf/lf-lib.sh"
+  gentle_change_dir "${HOME}/tmp"
+}}
+
+cmd self_install_command ${{
+  the_command='wget -O /tmp/setup.sh https://raw.githubusercontent.com/liamray/fm/main/setup.sh && chmod +x /tmp/setup.sh && . /tmp/setup.sh'
 
   alias c='false'
 
@@ -301,49 +287,77 @@ cmd selfInstallCommand ${{
       Darwin*)    alias c='pbcopy';;
   esac
 
-  if ! printf "${theCommand}" | c
+  if ! printf "${the_command}" | c
   then
     lf -remote 'send echo Cannot copy the self installation command to the clipboard. Copy it manually from the terminal.'
-    printf "*** Self installation command:\n\t[${theCommand}]\n"
+    printf "*** Self installation command:\n\t[${the_command}]\n"
   fi  
 }}
 
-map p
-map r rememberLocation
-map f
-map fl $ echo 1
-map ff $ echo 2
-map fi $ echo 3
-map c copyItem
+map r recent_locations
+map R reload
+map c copy_item
 map v paste
-map x cutItem
-map i showDirInfo
+map x cut_item
+map f find_files_case_off
+map F find_files_case_on
+map l filter
+map i find_in_files_case_off
+map I find_in_files_case_on
+map z zip
+map Z unzip
+map / search
+map n search-next
+map N search-prev
 map . set hidden!
 map o !true
+map C copy_item_name_2_clipboard
+map sn :set sortby natural; set info
+map ss :set sortby size; set info size
+map st :set sortby time; set info time
+map sa :set sortby atime; set info atime
+map sc :set sortby ctime; set info ctime
+map se :set sortby ext; set info
+map q quit
 
-map <a-c> copyNameToClipboard
-map <c-c> copyFullPathToClipboard
+map * invert
+map [ jump-prev
+map ] jump-next
+map '$' shell
+
 map <delete> delete
-map <c-f> findFiles
-map <a-f> findInFiles
-
+map <space> :toggle; down
+map <up> up
+map <down> down
+map <home> top
+map <end> bottom
+map <right> open
+map <left> updir
+map <pgdn> page-down
+map <pgup> page-up
 map <enter> open
 map <esc> esc
 map <insert> :toggle; down
+map <backtab> open_current_dir
 
+map <f-1> f_menu
 map <f-2> menu
-map <f-3> viewFile
-map <f-4> editFile
-map <f-5> makeACopy
+map <f-3> view_file
+map <f-4> edit_file
+map <f-5> make_a_copy
 map <f-6> rename
-map <f-7> mkDir
-map <f-8> mkFile
-map <f-12> selfInstallCommand
+map <f-7> mk_dir
+map <f-8> mk_file
+map <f-12> self_install_command
 
 # jump to dirs
 map \\ cd /
 map h cd ~
-map w cd ~/workspaces
-map t cd ~/tmp
+map w workspace_dir
+map t tmp_dir
+map T cd /tmp
 map d cd ~/Downloads
-map <backspace2> goBack
+map D cd ~/Desktop
+
+# adding the current directory to the recent dirs list
+on-cd
