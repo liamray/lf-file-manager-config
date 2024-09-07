@@ -1,7 +1,7 @@
 #!/bin/sh
 
 CONFIG_FILE="main.zip"
-CONFIG_SOURCE='https://github.com/liamray/fm/archive/refs/heads/${CONFIG_FILE}'
+CONFIG_SOURCE='https://github.com/liamray/lf-file-manager-config/archive/refs/heads/${CONFIG_FILE}'
 
 set -eux
 if ! which sudo >/dev/null
