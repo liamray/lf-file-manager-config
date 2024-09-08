@@ -102,17 +102,13 @@ find_files() {
 }
 
 find_in_files() {
-  # ensure we use an external bash's printf and not shell built in one
-  the_printf=$( which printf )
-
   RG_PREFIX="rg ${1:-} --hidden --no-ignore --column --line-number --no-heading --color=always "
-  INITIAL_QUERY=""
   selected=$( 
-    FZF_DEFAULT_COMMAND="$RG_PREFIX $(${the_printf} %q "$INITIAL_QUERY")" \
+    FZF_DEFAULT_COMMAND="${RG_PREFIX} ''" \
     fzf ${1:-} \
         --ansi \
         --reverse \
-        --disabled --query "$INITIAL_QUERY" \
+        --disabled \
         --bind "change:reload:sleep 0.1; $RG_PREFIX {q} || true" \
         --bind 'f3:execute(bat --paging=always --color=always {1} --highlight-line {2} 2>/dev/null || batcat --paging=always --color=always {1} --highlight-line {2} 2>/dev/null || less {1} )' \
         --bind 'f4:execute(vi +{2} {1} )' \
