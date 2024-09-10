@@ -287,8 +287,10 @@ cmd self_install_command ${{
       Darwin*)    alias c='pbcopy';;
   esac
 
-  if ! printf "${the_command}" | c
+  if printf "${the_command}" | c
   then
+    lf -remote 'send echo The self-installation command has been copied to the clipboard'
+  else
     lf -remote 'send echo Cannot copy the self installation command to the clipboard. Copy it manually from the terminal.'
     printf "*** Self installation command:\n\t[${the_command}]\n"
   fi  
