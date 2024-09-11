@@ -31,7 +31,7 @@ install_common_packages() {
         if which apt >/dev/null
         then
                 sudo apt -qq update
-                sudo DEBIAN_FRONTEND=noninteractive apt -qq install zip unzip wget xsel vim ripgrep less jq -y
+                sudo DEBIAN_FRONTEND=noninteractive apt -qq install zip unzip wget xsel vim ripgrep less jq bat -y
                 return
         fi
 
@@ -40,7 +40,7 @@ install_common_packages() {
         then
                 # todo: test it
                 sudo yum update
-                sudo yum install zip unzip zip unzip wget xsel vim ripgrep less jq -y
+                sudo yum install zip unzip zip unzip wget xsel vim ripgrep less jq bat -y
                 return
         fi
 
@@ -201,13 +201,11 @@ install_lf() {
         fi
 }
 
-add_lf_to_profile() {
-        profile="${HOME}/.profile"
+append_script() {
+        local file="$1"
 
-        # lf() function already in the .profile?
-        if [ -f "${profile}" ] && cat "${profile}" | grep 'lf()'
+        if cat "${file}" | grep 'lf()'
         then
-                # already there
                 return
         fi
 
@@ -215,7 +213,7 @@ add_lf_to_profile() {
         lf_runner=$( which lf )
 
         # adding the lf() function to the .profile
-        cat << EOF >> "${profile}"
+        cat << EOF >> "${file}"
 
 export LF_COLORS="\
 ~/Downloads=01;31:\
@@ -250,7 +248,54 @@ lf() {
 EOF
 
         # sourcing
-        . "${profile}"
+        . "${file}"
+}
+
+add_lf_to_profile() {
+        # detect the operating system
+        os=$(uname -s)
+
+        case "$os" in
+        Linux)
+                shell=$(basename "$SHELL")
+
+                case "$shell" in
+                bash)
+                        append_script "$HOME/.bashrc"
+                        ;;
+                zsh)
+                        append_script "$HOME/.zshrc"
+                        ;;
+                ksh)
+                        append_script "$HOME/.kshrc"
+                        ;;
+                *)
+                        echo "Unsupported shell: $shell"
+                        exit 1
+                        ;;
+                esac
+                ;;
+        Darwin)
+                shell=$(basename "$SHELL")
+                
+                case "$shell" in
+                bash)
+                        append_script "$HOME/.bash_profile"
+                        ;;
+                zsh)
+                        append_script "$HOME/.zshrc"
+                        ;;
+                *)
+                        echo "Unsupported shell: $shell"
+                        exit 1
+                        ;;
+                esac
+                ;;
+        *)
+                echo "Unsupported OS: $os"
+                exit 1
+                ;;
+        esac
 }
 
 install_lf_config() {        
