@@ -248,7 +248,9 @@ lf() {
 EOF
 
         # sourcing
+        set +eux
         . "${file}"
+        set -eux
 }
 
 add_lf_to_profile() {
