@@ -330,7 +330,10 @@ map '$' shell
 map <delete> delete
 map <space> :toggle; down
 map <up> up
+map <m-up> up
 map <down> down
+map <m-down> down
+map <m-3> open_current_dir
 map <home> top
 map <end> bottom
 map <right> open
