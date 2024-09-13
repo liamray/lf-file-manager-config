@@ -5,6 +5,12 @@ set -eux
 LF_CONFIG_FILE="main.zip"
 LF_CONFIG_URL="https://github.com/liamray/lf-file-manager-config/archive/refs/heads/${LF_CONFIG_FILE}"
 
+init_opts() {
+        old_opts="${-}"
+        eux_opts=$( echo "${old_opts}" | grep -o '[eux]' | tr -d '\n' )
+        set -eux
+}
+
 init() {
         if ! which sudo >/dev/null
         then
@@ -309,8 +315,23 @@ install_lf_config() {
         unzip -j "${LF_CONFIG_FILE}" -d "${lf_dir}"
 }
 
+restore_opts() {
+        set +eux
+        echo "(2)the saved opts are [${eux_opts}]"
+        set -${eux_opts}
+}
+
+finilize() {
+        set +x
+        echo
+        echo '-----------------------------------'
+        echo 'All Done!'
+        echo 'Type lf to start the file manager'
+        echo '-----------------------------------'
+}
 
 ####################################################################################
+init_opts
 init
 create_temp_dir
 install_common_packages
@@ -318,4 +339,6 @@ install_fzf
 install_lf
 add_lf_to_profile
 install_lf_config
+restore_opts
+finilize
 ####################################################################################
