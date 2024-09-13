@@ -244,7 +244,7 @@ cmd zip ${{
   set -eux
   . "${HOME}/.config/lf/lf-lib.sh"
 
-  files=$( printf "${fx}" | sed 's-.*/--g' | tr -s "\n" " " )
+  files=$( printf "${fx}" | sed 's-.*/--g' )
   if zip_name=$( read_input "Creating ZIP" "Zip file name: " "" )
     then zip -r "${zip_name}" ${files}
   fi
