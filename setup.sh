@@ -135,46 +135,57 @@ install_fzf() {
 }
 
 install_bat() {
-        # still not working
-        exit 1
-        # already installed?
-        if which bat || which batcat
+        if [ "${OS}" = 'darwin' ]
         then
-                echo '-----------------------'
-                echo 'bat is already installed'
+                brew install bat
                 return
         fi
 
         case "${ARCH}" in
-                "x86_64") ARCH="x86_64" ;;
+                "x86_64") ARCH="amd64" ;;
                 "i386" | "i686") ARCH="i686" ;;
-                "armv7l") ARCH="arm" ;;
-                "aarch64") ARCH="aarch64" ;;
-                *) echo "Unsupported architecture: ${ARCH}"; exit 1 ;;
+                "armv7l") ARCH="armhf" ;;
+                "aarch64") ARCH="arm64" ;;
+                *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
         esac
 
-        if [ "${OS}" = "linux" ]; then
+        # Determine file type and filename based on OS and architecture
+        if [ "$OS" = "linux" ]
+        then
                 case "$ARCH" in
-                        "x86_64") file_name="bat-v${BAT_VERSION}-x86_64-unknown-linux-gnu.tar.gz" ;;
-                        "i686") file_name="bat-v${BAT_VERSION}-i686-unknown-linux-gnu.tar.gz" ;;
-                        "arm") file_name="bat-v${BAT_VERSION}-arm-unknown-linux-gnueabihf.tar.gz" ;;
-                        "aarch64") file_name="bat-v${BAT_VERSION}-aarch64-unknown-linux-gnu.tar.gz" ;;
-                        *) echo "Unsupported architecture for Linux: ${ARCH}"; exit 1 ;;
+                "amd64")
+                        if command -v dpkg > /dev/null 2>&1; then
+                                file_name="bat_${BAT_VERSION}_amd64.deb"
+                        else
+                                file_name="bat-v${BAT_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+                        fi
+                ;;
+                "i686")
+                        if command -v dpkg > /dev/null 2>&1; then
+                                file_name="bat_${BAT_VERSION}_i686.deb"
+                        else
+                                file_name="bat-v${BAT_VERSION}-i686-unknown-linux-gnu.tar.gz"
+                        fi
+                ;;
+                "armhf")
+                        file_name="bat_${BAT_VERSION}_armhf.deb"
+                ;;
+                "arm64")
+                        file_name="bat_${BAT_VERSION}_arm64.deb"
+                ;;
+                *)
+                echo "Unsupported architecture for Linux: $ARCH"; exit 1
+                ;;
                 esac
         fi
-        
-        if [ "${OS}" = "darwin" ]
-        then
-                file_name="bat-v${BAT_VERSION}-x86_64-apple-darwin.tar.gz"
-        fi
 
-        download_url="https://github.com/sharkdp/bat/releases/download/${BAT_VERSION}/${file_name}"
+        download_url="https://github.com/sharkdp/bat/releases/download/v${BAT_VERSION}/${file_name}"
 
         # downloading the file
         wget -O "${file_name}" "${download_url}"
 
         # is .deb package?
-        if [ "${FILENAME##*.}" = "deb" ]
+        if [ "${file_name##*.}" = "deb" ]
         then
                 sudo dpkg -i "$file_name"
                 return
