@@ -4,17 +4,12 @@
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
 
-# https://github.com/junegunn/fzf/releases
-FZF_VERSION='0.55.0'
+# https://github.com/junegunn/fzf/releases, https://github.com/BurntSushi/ripgrep/releases, https://github.com/sharkdp/bat/releases, https://github.com/gokcehan/lf/releases
+BAT_VERSION="0.24.0"
+RIPGREP_VERSION="14.1.1"
+FZF_VERSION="0.55.0"
+LF_VERSION="r32"
 
-# https://github.com/BurntSushi/ripgrep/releases
-RG_VERSION='14.1.1'
-
-# https://github.com/sharkdp/bat/releases
-BAT_VERSION='0.24.0'
-
-# https://github.com/gokcehan/lf/releases
-LF_VERSION='r32'
 
 # lf config file location in GitHub
 LF_CONFIG_FILE="main.zip"
@@ -38,8 +33,6 @@ init() {
         trap "rm -rf ${tmp_dir}" EXIT
         cd "${tmp_dir}"
 }
-
-
 
 install_common_packages() {
         # macos
@@ -94,166 +87,136 @@ install_common_packages() {
         exit 1
 }
 
-install_fzf() {
-        if which fzf
-        then
-                echo '-----------------------'
-                echo "fzf is already installed, the minimum recommended version is [${FZF_VERSION}]"
-                return        
-        fi
 
-        case "${ARCH}" in
-                "x86_64") ARCH="amd64" ;;
-                "armv5l") ARCH="armv5" ;;
-                "armv6l") ARCH="armv6" ;;
-                "armv7l") ARCH="armv7" ;;
-                "aarch64") ARCH="arm64" ;;
-                "ppc64le") ARCH="ppc64le" ;;
-                "s390x") ARCH="s390x" ;;
-                "loongarch64") ARCH="loong64" ;;
-                *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
-        esac
+install_deb() {
+  URL=$1
+  wget "$URL" -O temp.deb
+  sudo dpkg -i temp.deb
+}
 
-        # Determine the correct file to download
-        file_name="fzf-${FZF_VERSION}-${OS}_${ARCH}.tar.gz"
-        download_url="https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/${file_name}"
-
-        # downloading the file
-        wget -O "${file_name}" "${download_url}"
-
-        # extract the tarball
-        tar -xzf "${file_name}"
-
-        # move the binary to /usr/local/bin or ~/bin
-        if [ -d "/usr/local/bin" ]
-        then
-                sudo mv fzf /usr/local/bin/
-        else
-                mkdir -p ~/bin
-                mv fzf ~/bin/
-        fi
+install_tarball() {
+  URL=$1
+  wget "$URL" -O temp.tar.gz
+  tar -xf temp.tar.gz
+  sudo mv ./bat /usr/local/bin/
 }
 
 install_bat() {
-        if [ "${OS}" = 'darwin' ]
-        then
-                brew install bat
-                return
-        fi
-
-        case "${ARCH}" in
-                "x86_64") ARCH="amd64" ;;
-                "i386" | "i686") ARCH="i686" ;;
-                "armv7l") ARCH="armhf" ;;
-                "aarch64") ARCH="arm64" ;;
-                *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
-        esac
-
-        # Determine file type and filename based on OS and architecture
-        if [ "$OS" = "linux" ]
-        then
-                case "$ARCH" in
-                "amd64")
-                        if command -v dpkg > /dev/null 2>&1; then
-                                file_name="bat_${BAT_VERSION}_amd64.deb"
-                        else
-                                file_name="bat-v${BAT_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
-                        fi
-                ;;
-                "i686")
-                        if command -v dpkg > /dev/null 2>&1; then
-                                file_name="bat_${BAT_VERSION}_i686.deb"
-                        else
-                                file_name="bat-v${BAT_VERSION}-i686-unknown-linux-gnu.tar.gz"
-                        fi
-                ;;
-                "armhf")
-                        file_name="bat_${BAT_VERSION}_armhf.deb"
-                ;;
-                "arm64")
-                        file_name="bat_${BAT_VERSION}_arm64.deb"
-                ;;
-                *)
-                echo "Unsupported architecture for Linux: $ARCH"; exit 1
-                ;;
-                esac
-        fi
-
-        download_url="https://github.com/sharkdp/bat/releases/download/v${BAT_VERSION}/${file_name}"
-
-        # downloading the file
-        wget -O "${file_name}" "${download_url}"
-
-        # is .deb package?
-        if [ "${file_name##*.}" = "deb" ]
-        then
-                sudo dpkg -i "$file_name"
-                return
-        fi
-
-        # handling tar.gz
-        tar -xzf "${file_name}"
-
-        # move the binary to /usr/local/bin or ~/bin
-        if [ -d "/usr/local/bin" ]
-        then
-                sudo mv bat /usr/local/bin/
-        else
-                mkdir -p ~/bin
-                mv bat ~/bin/
-        fi
+  case "$OS" in
+    linux)
+      case "$ARCH" in
+        amd64)
+          install_deb "https://github.com/sharkdp/bat/releases/download/v$BAT_VERSION/bat_${BAT_VERSION}_amd64.deb"
+          ;;
+        arm64)
+          install_deb "https://github.com/sharkdp/bat/releases/download/v$BAT_VERSION/bat_${BAT_VERSION}_arm64.deb"
+          ;;
+        armhf)
+          install_deb "https://github.com/sharkdp/bat/releases/download/v$BAT_VERSION/bat_${BAT_VERSION}_armhf.deb"
+          ;;
+        i686)
+          install_deb "https://github.com/sharkdp/bat/releases/download/v$BAT_VERSION/bat_${BAT_VERSION}_i686.deb"
+          ;;
+      esac
+      ;;
+    darwin)
+      brew install bat
+      ;;
+    *)
+      echo "Unsupported OS: $OS"
+      ;;
+  esac
 }
 
+install_ripgrep() {
+  case "$OS" in
+    linux)
+      case "$ARCH" in
+        amd64)
+          install_deb "https://github.com/BurntSushi/ripgrep/releases/download/$RIPGREP_VERSION/ripgrep_$RIPGREP_VERSION-1_amd64.deb"
+          ;;
+        arm64)
+          install_tarball "https://github.com/BurntSushi/ripgrep/releases/download/$RIPGREP_VERSION/ripgrep-$RIPGREP_VERSION-aarch64-unknown-linux-gnu.tar.gz"
+          ;;
+        armhf)
+          install_tarball "https://github.com/BurntSushi/ripgrep/releases/download/$RIPGREP_VERSION/ripgrep-$RIPGREP_VERSION-armv7-unknown-linux-gnueabihf.tar.gz"
+          ;;
+        i686)
+          install_tarball "https://github.com/BurntSushi/ripgrep/releases/download/$RIPGREP_VERSION/ripgrep-$RIPGREP_VERSION-i686-unknown-linux-gnu.tar.gz"
+          ;;
+      esac
+      ;;
+    darwin)
+      brew install ripgrep
+      ;;
+    *)
+      echo "Unsupported OS: $OS"
+      ;;
+  esac
+}
 
-install_rg() {
-        :
+install_fzf() {
+  case "$OS" in
+    linux)
+      case "$ARCH" in
+        amd64)
+          install_tarball "https://github.com/junegunn/fzf/releases/download/v$FZF_VERSION/fzf-$FZF_VERSION-linux_amd64.tar.gz"
+          ;;
+        arm64)
+          install_tarball "https://github.com/junegunn/fzf/releases/download/v$FZF_VERSION/fzf-$FZF_VERSION-linux_arm64.tar.gz"
+          ;;
+        armhf)
+          install_tarball "https://github.com/junegunn/fzf/releases/download/v$FZF_VERSION/fzf-$FZF_VERSION-linux_armv7.tar.gz"
+          ;;
+        i686)
+          install_tarball "https://github.com/junegunn/fzf/releases/download/v$FZF_VERSION/fzf-$FZF_VERSION-linux_386.tar.gz"
+          ;;
+      esac
+      ;;
+    darwin)
+      brew install fzf
+      ;;
+    *)
+      echo "Unsupported OS: $OS"
+      ;;
+  esac
 }
 
 install_lf() {
-        # already installed?
-        if which lf
-        then
-                echo '-----------------------'
-                echo 'lf is already installed'
-                return
-        fi
-
-        case "${ARCH}" in
-                "x86_64") ARCH="amd64" ;;
-                "i386" | "i686") ARCH="386" ;;
-                "armv7l") ARCH="arm" ;;
-                "aarch64") ARCH="arm64" ;;
-                "ppc64le") ARCH="ppc64le" ;;
-                "ppc64") ARCH="ppc64" ;;
-                "mips64") ARCH="mips64" ;;
-                "mips64el") ARCH="mips64le" ;;
-                "mips") ARCH="mips" ;;
-                "mipsel") ARCH="mipsle" ;;
-                "s390x") ARCH="s390x" ;;
-                *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
-        esac
-
-        if [ "$OS" = "sunos" ]; then
-                OS="illumos"
-        fi
-
-        file_name="lf-${OS}-${ARCH}.tar.gz"
-        download_url="https://github.com/gokcehan/lf/releases/download/${LF_VERSION}/${file_name}"
-
-        # downloading the file
-        wget -O "${file_name}" "${download_url}"
-
-        # extract the tarball
-        tar -xzf "${file_name}"
-
-        # move the binary to /usr/local/bin or ~/bin
-        if [ -d "/usr/local/bin" ]
-        then
-                sudo mv lf /usr/local/bin/
-        else
-                mkdir -p ~/bin
-                mv lf ~/bin/
-        fi
+  case "$OS" in
+    linux)
+      case "$ARCH" in
+        amd64)
+          install_tarball "https://github.com/gokcehan/lf/releases/download/$LF_VERSION/lf-linux-amd64.tar.gz"
+          ;;
+        arm64)
+          install_tarball "https://github.com/gokcehan/lf/releases/download/$LF_VERSION/lf-linux-arm64.tar.gz"
+          ;;
+        armhf)
+          install_tarball "https://github.com/gokcehan/lf/releases/download/$LF_VERSION/lf-linux-arm.tar.gz"
+          ;;
+        i686)
+          install_tarball "https://github.com/gokcehan/lf/releases/download/$LF_VERSION/lf-linux-386.tar.gz"
+          ;;
+      esac
+      ;;
+    darwin)
+      case "$ARCH" in
+        amd64)
+          install_tarball "https://github.com/gokcehan/lf/releases/download/$LF_VERSION/lf-darwin-amd64.tar.gz"
+          ;;
+        arm64)
+          install_tarball "https://github.com/gokcehan/lf/releases/download/$LF_VERSION/lf-darwin-arm64.tar.gz"
+          ;;
+        *)
+          echo "Unsupported architecture for macOS: $ARCH"
+          ;;
+      esac    
+      ;;
+    *)
+      echo "Unsupported OS: $OS"
+      ;;
+  esac
 }
 
 append_script() {
@@ -385,7 +348,7 @@ install_common_packages
 
 install_fzf
 install_bat
-install_rg
+install_ripgrep
 install_lf
 
 add_lf_to_profile
