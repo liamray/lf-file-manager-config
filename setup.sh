@@ -328,7 +328,6 @@ finilize() {
 
         # restoring the opts
         set +eux
-        echo "(2)the saved opts are [${eux_opts}]"
         set -${eux_opts}
 }
 
