@@ -1,9 +1,25 @@
 #!/bin/sh
 
-set -eux
+# operating system + architecture
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m)
 
+# https://github.com/junegunn/fzf/releases
+FZF_VERSION='0.55.0'
+
+# https://github.com/BurntSushi/ripgrep/releases
+RG_VERSION='14.1.1'
+
+# https://github.com/sharkdp/bat/releases
+BAT_VERSION='0.24.0'
+
+# https://github.com/gokcehan/lf/releases
+LF_VERSION='r32'
+
+# lf config file location in GitHub
 LF_CONFIG_FILE="main.zip"
 LF_CONFIG_URL="https://github.com/liamray/lf-file-manager-config/archive/refs/heads/${LF_CONFIG_FILE}"
+
 
 init() {
         # handling shell opts
@@ -23,91 +39,90 @@ init() {
         cd "${tmp_dir}"
 }
 
+
+
 install_common_packages() {
         # macos
-        if which brew >/dev/null
+        if [ "${OS}" = 'darwin' ]
         then
-                # todo: test it
-                brew install pbcopy
+                brew install zip unzip wget xsel vim ripgrep less jq bat                
                 return
         fi
 
-        # debian*
-        if which apt >/dev/null
+        # non linux
+        if [ "${OS}" != 'linux' ]
         then
-                sudo apt -qq update
+                echo 'Unsupported [${OS}] OS'
+                exit 1
+        fi
+
+        # debian
+        if [ -f /etc/debian_version ]
+        then
+                sudo DEBIAN_FRONTEND=noninteractive apt -qq update
                 sudo DEBIAN_FRONTEND=noninteractive apt -qq install zip unzip wget xsel vim ripgrep less jq bat -y
                 return
         fi
 
         # rh
-        if which yum >/dev/null
+        if [ -f /etc/redhat-release ]
         then
-                # todo: test it
-                sudo yum update
-                sudo yum install zip unzip zip unzip wget xsel vim ripgrep less jq bat -y
-                return
-        fi
+                if command -v dnf > /dev/null 2>&1
+                then
+                        sudo dnf install -y zip unzip wget xsel vim ripgrep less jq bat
+                        return
+                fi
 
-        # alpine
-        if which apk >/dev/null
-        then
-                apk add newt
-                return
-        fi
-}
-
-gh_latest_version() {
-        wget -qO- https://api.github.com/repos/${1}/releases/latest | jq -r '.tag_name'
-}
-
-detect_os_arch_for_fzf() {
-        OS=$(uname | tr '[:upper:]' '[:lower:]')
-        ARCH=$(uname -m)
-
-        case $OS in
-        linux)
-                case $ARCH in
-                x86_64) printf "linux_amd64" ;;
-                aarch64) printf "linux_arm64" ;;
-                armv5*) printf "linux_armv5" ;;
-                armv6*) printf "linux_armv6" ;;
-                armv7*) printf "linux_armv7" ;;
-                loong64) printf "linux_loong64" ;;
-                ppc64le) printf "linux_ppc64le" ;;
-                *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
-                esac
-                ;;
-        darwin)
-                case $ARCH in
-                x86_64) printf "darwin_amd64" ;;
-                arm64) printf "darwin_arm64" ;;
-                *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
-                esac
-                ;;
-        freebsd)
-                case $ARCH in
-                x86_64) printf "freebsd_amd64" ;;
-                *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
-                esac
-                ;;
-        *)
-                echo "Unsupported operating system: $OS"
+                if command -v yum > /dev/null 2>&1
+                then
+                        sudo yum install -y zip unzip wget xsel vim ripgrep less jq bat
+                        return
+                fi
+                
+                echo 'Unsupported package manager for RH Linux'
                 exit 1
-                ;;
-        esac
+        fi
+
+        # arch
+        if [ -f /etc/arch-release ]
+        then
+                sudo pacman -Sy --noconfirm zip unzip wget xsel vim ripgrep less jq bat
+                return
+        fi
+
+        echo 'Unsupported Linux release'
+        exit 1
 }
 
 install_fzf() {
-        BINARY=$(detect_os_arch_for_fzf)
-        VERSION=$(gh_latest_version 'junegunn/fzf')
-        URL="https://github.com/junegunn/fzf/releases/download/${VERSION}/fzf-${VERSION#?}-${BINARY}.tar.gz"
+        if which fzf
+        then
+                echo '-----------------------'
+                echo "fzf is already installed, the minimum recommended version is [${FZF_VERSION}]"
+                return        
+        fi
 
-        # download binary
-        wget -O fzf.tar.gz "${URL}"
+        case "${ARCH}" in
+                "x86_64") ARCH="amd64" ;;
+                "armv5l") ARCH="armv5" ;;
+                "armv6l") ARCH="armv6" ;;
+                "armv7l") ARCH="armv7" ;;
+                "aarch64") ARCH="arm64" ;;
+                "ppc64le") ARCH="ppc64le" ;;
+                "s390x") ARCH="s390x" ;;
+                "loongarch64") ARCH="loong64" ;;
+                *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+        esac
 
-        # extract it
-        tar -xzf fzf.tar.gz
+        # Determine the correct file to download
+        file_name="fzf-${FZF_VERSION}-${OS}_${ARCH}.tar.gz"
+        download_url="https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/${file_name}"
+
+        # downloading the file
+        wget -O "${file_name}" "${download_url}"
+
+        # extract the tarball
+        tar -xzf "${file_name}"
 
         # move the binary to /usr/local/bin or ~/bin
         if [ -d "/usr/local/bin" ]
@@ -117,84 +132,108 @@ install_fzf() {
                 mkdir -p ~/bin
                 mv fzf ~/bin/
         fi
-
 }
 
-detect_os_arch_for_lf() {
-        OS="$(uname -s)"
-        ARCH="$(uname -m)"
+install_bat() {
+        # still not working
+        exit 1
+        # already installed?
+        if which bat || which batcat
+        then
+                echo '-----------------------'
+                echo 'bat is already installed'
+                return
+        fi
 
-        case "$OS" in
-        Linux)
-                OS="linux"
-                ;;
-        Darwin)
-                OS="darwin"
-                ;;
-        FreeBSD)
-                OS="freebsd"
-                ;;
-        DragonFly)
-                OS="dragonfly"
-                ;;
-        SunOS)
-                OS="illumos"
-                ;;
-        Android)
-                OS="android"
-                ;;
-        *)
-                echo "Unsupported operating system: $OS"
-                exit 1
-                ;;
+        case "${ARCH}" in
+                "x86_64") ARCH="x86_64" ;;
+                "i386" | "i686") ARCH="i686" ;;
+                "armv7l") ARCH="arm" ;;
+                "aarch64") ARCH="aarch64" ;;
+                *) echo "Unsupported architecture: ${ARCH}"; exit 1 ;;
         esac
 
-        case "$ARCH" in
-        x86_64)
-                ARCH="amd64"
-                ;;
-        aarch64 | arm64)
-                ARCH="arm64"
-                ;;
-        i386 | i686)
-                ARCH="386"
-                ;;
-        arm*)
-                ARCH="arm"
-                ;;
-        *)
-                echo "Unsupported architecture: $ARCH"
-                exit 1
-                ;;
-        esac
+        if [ "${OS}" = "linux" ]; then
+                case "$ARCH" in
+                        "x86_64") file_name="bat-v${BAT_VERSION}-x86_64-unknown-linux-gnu.tar.gz" ;;
+                        "i686") file_name="bat-v${BAT_VERSION}-i686-unknown-linux-gnu.tar.gz" ;;
+                        "arm") file_name="bat-v${BAT_VERSION}-arm-unknown-linux-gnueabihf.tar.gz" ;;
+                        "aarch64") file_name="bat-v${BAT_VERSION}-aarch64-unknown-linux-gnu.tar.gz" ;;
+                        *) echo "Unsupported architecture for Linux: ${ARCH}"; exit 1 ;;
+                esac
+        fi
+        
+        if [ "${OS}" = "darwin" ]
+        then
+                file_name="bat-v${BAT_VERSION}-x86_64-apple-darwin.tar.gz"
+        fi
 
-        echo "${OS}-${ARCH}"
+        download_url="https://github.com/sharkdp/bat/releases/download/${BAT_VERSION}/${file_name}"
+
+        # downloading the file
+        wget -O "${file_name}" "${download_url}"
+
+        # is .deb package?
+        if [ "${FILENAME##*.}" = "deb" ]
+        then
+                sudo dpkg -i "$file_name"
+                return
+        fi
+
+        # handling tar.gz
+        tar -xzf "${file_name}"
+
+        # move the binary to /usr/local/bin or ~/bin
+        if [ -d "/usr/local/bin" ]
+        then
+                sudo mv bat /usr/local/bin/
+        else
+                mkdir -p ~/bin
+                mv bat ~/bin/
+        fi
+}
+
+
+install_rg() {
+        :
 }
 
 install_lf() {
-        # get the latest release tag from GitHub using jq
-        LATEST_RELEASE=$(gh_latest_version 'gokcehan/lf')
-
-        # ff LATEST_RELEASE is empty, exit with an error
-        if [ -z "${LATEST_RELEASE}" ]
+        # already installed?
+        if which lf
         then
-                echo "Failed to get the latest release."
-                exit 1
+                echo '-----------------------'
+                echo 'lf is already installed'
+                return
         fi
 
-        # detect OS and architecture
-        OS_ARCH=$(detect_os_arch_for_lf)
+        case "${ARCH}" in
+                "x86_64") ARCH="amd64" ;;
+                "i386" | "i686") ARCH="386" ;;
+                "armv7l") ARCH="arm" ;;
+                "aarch64") ARCH="arm64" ;;
+                "ppc64le") ARCH="ppc64le" ;;
+                "ppc64") ARCH="ppc64" ;;
+                "mips64") ARCH="mips64" ;;
+                "mips64el") ARCH="mips64le" ;;
+                "mips") ARCH="mips" ;;
+                "mipsel") ARCH="mipsle" ;;
+                "s390x") ARCH="s390x" ;;
+                *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+        esac
 
-        # construct the download URL
-        BASE_URL="https://github.com/gokcehan/lf/releases/download/${LATEST_RELEASE}"
-        FILE_NAME="lf-${OS_ARCH}.tar.gz"
-        DOWNLOAD_URL="${BASE_URL}/${FILE_NAME}"
+        if [ "$OS" = "sunos" ]; then
+                OS="illumos"
+        fi
 
-        # download the file
-        wget -O "${FILE_NAME}" "${DOWNLOAD_URL}"
+        file_name="lf-${OS}-${ARCH}.tar.gz"
+        download_url="https://github.com/gokcehan/lf/releases/download/${LF_VERSION}/${file_name}"
+
+        # downloading the file
+        wget -O "${file_name}" "${download_url}"
 
         # extract the tarball
-        tar -xzf "$FILE_NAME"
+        tar -xzf "${file_name}"
 
         # move the binary to /usr/local/bin or ~/bin
         if [ -d "/usr/local/bin" ]
@@ -314,10 +353,7 @@ install_lf_config() {
         unzip -j "${LF_CONFIG_FILE}" -d "${lf_dir}"
 }
 
-restore_opts() {
-}
-
-finilize() {
+finalize() {
         # all done
         set +x
         echo
@@ -335,6 +371,7 @@ finilize() {
 init
 
 install_common_packages
+
 install_fzf
 install_bat
 install_rg
@@ -343,5 +380,5 @@ install_lf
 add_lf_to_profile
 install_lf_config
 
-finilize
+finalize
 ####################################################################################
