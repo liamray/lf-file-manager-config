@@ -45,7 +45,7 @@ install_common_packages() {
         # macos
         if [ "${OS}" = 'darwin' ]
         then
-                brew install zip unzip wget xsel vim ripgrep less jq bat                
+                brew install zip unzip wget xsel vim ripgrep bat                
                 return
         fi
 
@@ -60,7 +60,7 @@ install_common_packages() {
         if [ -f /etc/debian_version ]
         then
                 sudo DEBIAN_FRONTEND=noninteractive apt -qq update
-                sudo DEBIAN_FRONTEND=noninteractive apt -qq install zip unzip wget xsel vim less jq -y
+                sudo DEBIAN_FRONTEND=noninteractive apt -qq install zip unzip wget xsel vim -y
                 return
         fi
 
@@ -69,13 +69,13 @@ install_common_packages() {
         then
                 if command -v dnf > /dev/null 2>&1
                 then
-                        sudo dnf install -y zip unzip wget xsel vim less jq
+                        sudo dnf install -y zip unzip wget xsel vim
                         return
                 fi
 
                 if command -v yum > /dev/null 2>&1
                 then
-                        sudo yum install -y zip unzip wget xsel vim less jq
+                        sudo yum install -y zip unzip wget xsel vim
                         return
                 fi
                 
@@ -86,7 +86,7 @@ install_common_packages() {
         # arch
         if [ -f /etc/arch-release ]
         then
-                sudo pacman -Sy --noconfirm zip unzip wget xsel vim less jq
+                sudo pacman -Sy --noconfirm zip unzip wget xsel vim
                 return
         fi
 
