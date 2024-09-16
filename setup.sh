@@ -60,7 +60,7 @@ install_common_packages() {
         if [ -f /etc/debian_version ]
         then
                 sudo DEBIAN_FRONTEND=noninteractive apt -qq update
-                sudo DEBIAN_FRONTEND=noninteractive apt -qq install zip unzip wget xsel vim ripgrep less jq bat -y
+                sudo DEBIAN_FRONTEND=noninteractive apt -qq install zip unzip wget xsel vim less jq -y
                 return
         fi
 
@@ -69,13 +69,13 @@ install_common_packages() {
         then
                 if command -v dnf > /dev/null 2>&1
                 then
-                        sudo dnf install -y zip unzip wget xsel vim ripgrep less jq bat
+                        sudo dnf install -y zip unzip wget xsel vim less jq
                         return
                 fi
 
                 if command -v yum > /dev/null 2>&1
                 then
-                        sudo yum install -y zip unzip wget xsel vim ripgrep less jq bat
+                        sudo yum install -y zip unzip wget xsel vim less jq
                         return
                 fi
                 
@@ -86,7 +86,7 @@ install_common_packages() {
         # arch
         if [ -f /etc/arch-release ]
         then
-                sudo pacman -Sy --noconfirm zip unzip wget xsel vim ripgrep less jq bat
+                sudo pacman -Sy --noconfirm zip unzip wget xsel vim less jq
                 return
         fi
 
@@ -104,24 +104,24 @@ install_fzf() {
 
         if [ "${OS}" = 'darwin' ]
         then
-                brew install bat
+                brew install fzf
                 return
         fi
 
         case "${ARCH}" in
-                "x86_64") ARCH="amd64" ;;
-                "armv5l") ARCH="armv5" ;;
-                "armv6l") ARCH="armv6" ;;
-                "armv7l") ARCH="armv7" ;;
-                "aarch64") ARCH="arm64" ;;
-                "ppc64le") ARCH="ppc64le" ;;
-                "s390x") ARCH="s390x" ;;
-                "loongarch64") ARCH="loong64" ;;
-                *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+                "x86_64") arch_normalized="amd64" ;;
+                "armv5l") arch_normalized="armv5" ;;
+                "armv6l") arch_normalized="armv6" ;;
+                "armv7l") arch_normalized="armv7" ;;
+                "aarch64") arch_normalized="arm64" ;;
+                "ppc64le") arch_normalized="ppc64le" ;;
+                "s390x") arch_normalized="s390x" ;;
+                "loongarch64") arch_normalized="loong64" ;;
+                *) echo "Unsupported architecture: ${ARCH}"; exit 1 ;;
         esac
 
         # Determine the correct file to download
-        file_name="fzf-${FZF_VERSION}-${OS}_${ARCH}.tar.gz"
+        file_name="fzf-${FZF_VERSION}-${OS}_${arch_normalized}.tar.gz"
         download_url="https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/${file_name}"
 
         # downloading the file
@@ -155,17 +155,17 @@ install_bat() {
         fi
 
         case "${ARCH}" in
-                "x86_64") ARCH="amd64" ;;
-                "i386" | "i686") ARCH="i686" ;;
-                "armv7l") ARCH="armhf" ;;
-                "aarch64") ARCH="arm64" ;;
-                *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+                "x86_64") arch_normalized="amd64" ;;
+                "i386" | "i686") arch_normalized="i686" ;;
+                "armv7l") arch_normalized="armhf" ;;
+                "aarch64") arch_normalized="arm64" ;;
+                *) echo "Unsupported architecture: ${ARCH}"; exit 1 ;;
         esac
 
         # Determine file type and filename based on OS and architecture
         if [ "$OS" = "linux" ]
         then
-                case "$ARCH" in
+                case "$arch_normalized" in
                 "amd64")
                         if command -v dpkg > /dev/null 2>&1; then
                                 file_name="bat_${BAT_VERSION}_amd64.deb"
@@ -187,7 +187,7 @@ install_bat() {
                         file_name="bat_${BAT_VERSION}_arm64.deb"
                 ;;
                 *)
-                echo "Unsupported architecture for Linux: $ARCH"; exit 1
+                echo "Unsupported architecture for Linux: ${ARCH}"; exit 1
                 ;;
                 esac
         fi
@@ -232,14 +232,14 @@ install_rg() {
           return
   fi
 
-  case "$ARCH" in
+  case "${ARCH}" in
     "x86_64") arch_normalized="x86_64" ;;
     "i386" | "i686") arch_normalized="i686" ;;
     "armv7l") arch_normalized="armv7" ;;
     "aarch64") arch_normalized="aarch64" ;;
     "ppc64le") arch_normalized="powerpc64" ;;
     "s390x") arch_normalized="s390x" ;;
-    *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+    *) echo "Unsupported architecture: ${ARCH}"; exit 1 ;;
   esac
 
   case "$arch_normalized" in
@@ -305,25 +305,25 @@ install_lf() {
         fi
 
         case "${ARCH}" in
-                "x86_64") ARCH="amd64" ;;
-                "i386" | "i686") ARCH="386" ;;
-                "armv7l") ARCH="arm" ;;
-                "aarch64") ARCH="arm64" ;;
-                "ppc64le") ARCH="ppc64le" ;;
-                "ppc64") ARCH="ppc64" ;;
-                "mips64") ARCH="mips64" ;;
-                "mips64el") ARCH="mips64le" ;;
-                "mips") ARCH="mips" ;;
-                "mipsel") ARCH="mipsle" ;;
-                "s390x") ARCH="s390x" ;;
-                *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+                "x86_64") arch_normalized="amd64" ;;
+                "i386" | "i686") arch_normalized="386" ;;
+                "armv7l") arch_normalized="arm" ;;
+                "aarch64") arch_normalized="arm64" ;;
+                "ppc64le") arch_normalized="ppc64le" ;;
+                "ppc64") arch_normalized="ppc64" ;;
+                "mips64") arch_normalized="mips64" ;;
+                "mips64el") arch_normalized="mips64le" ;;
+                "mips") arch_normalized="mips" ;;
+                "mipsel") arch_normalized="mipsle" ;;
+                "s390x") arch_normalized="s390x" ;;
+                *) echo "Unsupported architecture: ${ARCH}"; exit 1 ;;
         esac
 
         if [ "$OS" = "sunos" ]; then
                 OS="illumos"
         fi
 
-        file_name="lf-${OS}-${ARCH}.tar.gz"
+        file_name="lf-${OS}-${arch_normalized}.tar.gz"
         download_url="https://github.com/gokcehan/lf/releases/download/${LF_VERSION}/${file_name}"
 
         # downloading the file
