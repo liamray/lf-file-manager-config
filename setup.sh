@@ -102,6 +102,12 @@ install_fzf() {
                 return        
         fi
 
+        if [ "${OS}" = 'darwin' ]
+        then
+                brew install bat
+                return
+        fi
+
         case "${ARCH}" in
                 "x86_64") ARCH="amd64" ;;
                 "armv5l") ARCH="armv5" ;;
@@ -135,6 +141,13 @@ install_fzf() {
 }
 
 install_bat() {
+        if which bat || which batcat
+        then
+                echo '-----------------------'
+                echo "bat is already installed, the minimum recommended version is [${BAT_VERSION}]"
+                return        
+        fi
+
         if [ "${OS}" = 'darwin' ]
         then
                 brew install bat
@@ -206,7 +219,80 @@ install_bat() {
 
 
 install_rg() {
-        :
+  if which rg
+  then
+          echo '-----------------------'
+          echo "ripgrep is already installed, the minimum recommended version is [${RG_VERSION}]"
+          return        
+  fi
+
+  if [ "${OS}" = 'darwin' ]
+  then
+          brew install ripgrep
+          return
+  fi
+
+  case "$ARCH" in
+    "x86_64") arch_normalized="x86_64" ;;
+    "i386" | "i686") arch_normalized="i686" ;;
+    "armv7l") arch_normalized="armv7" ;;
+    "aarch64") arch_normalized="aarch64" ;;
+    "ppc64le") arch_normalized="powerpc64" ;;
+    "s390x") arch_normalized="s390x" ;;
+    *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+  esac
+
+  case "$arch_normalized" in
+      "x86_64")
+        if command -v dpkg > /dev/null 2>&1; then
+          file_name="ripgrep_${RG_VERSION}-1_amd64.deb"
+        else
+          file_name="ripgrep-${RG_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+        fi
+        ;;
+      "i686")
+        file_name="ripgrep-${RG_VERSION}-i686-unknown-linux-gnu.tar.gz"
+        ;;
+      "armv7")
+        file_name="ripgrep-${RG_VERSION}-armv7-unknown-linux-gnueabihf.tar.gz"
+        ;;
+      "aarch64")
+        file_name="ripgrep-${RG_VERSION}-aarch64-unknown-linux-gnu.tar.gz"
+        ;;
+      "powerpc64")
+        file_name="ripgrep-${RG_VERSION}-powerpc64-unknown-linux-gnu.tar.gz"
+        ;;
+      "s390x")
+        file_name="ripgrep-${RG_VERSION}-s390x-unknown-linux-gnu.tar.gz"
+        ;;
+      *)
+        echo "Unsupported architecture for Linux: $arch_normalized"; exit 1
+        ;;
+  esac
+
+  download_url="https://github.com/BurntSushi/ripgrep/releases/download/${RG_VERSION}/${file_name}"
+
+  # downloading the file
+  wget -O "${file_name}" "${download_url}"
+
+  # is .deb package?
+  if [ "${file_name##*.}" = "deb" ]
+  then
+          sudo dpkg -i "$file_name"
+          return
+  fi
+
+  # handling tar.gz
+  tar -xzf "${file_name}"
+
+  # move the binary to /usr/local/bin or ~/bin
+  if [ -d "/usr/local/bin" ]
+  then
+          sudo mv rg /usr/local/bin/
+  else
+          mkdir -p ~/bin
+          mv rg ~/bin/
+  fi
 }
 
 install_lf() {
