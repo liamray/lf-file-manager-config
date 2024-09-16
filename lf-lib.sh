@@ -109,7 +109,7 @@ find_in_files() {
         --ansi \
         --reverse \
         --disabled \
-        --bind "change:reload:sleep 0.1; $RG_PREFIX {q} || true" \
+        --bind "change:reload:sleep 0.3; $RG_PREFIX {q} || true" \
         --bind 'f3:execute(bat --paging=always --color=always {1} --highlight-line {2} 2>/dev/null || batcat --paging=always --color=always {1} --highlight-line {2} 2>/dev/null || less {1} )' \
         --bind 'f4:execute(vi +{2} {1} )' \
         --bind 'tab:execute(open {1} &>/dev/null )' \

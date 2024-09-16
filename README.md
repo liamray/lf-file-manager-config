@@ -1,4 +1,12 @@
 ## Self Install Command
 
 
-`wget -O /tmp/setup.sh https://raw.githubusercontent.com/liamray/lf-file-manager-config/main/setup.sh && chmod +x /tmp/setup.sh && . /tmp/setup.sh`
+`
+setup='/tmp/lf-config-setup.sh'
+
+wget -O "${setup}" https://raw.githubusercontent.com/liamray/lf-file-manager-config/main/setup.sh
+
+chmod +x "${setup}"
+
+. "${setup}"
+`
