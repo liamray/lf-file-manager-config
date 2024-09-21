@@ -202,7 +202,7 @@ cmd view_file ${{
   # file preview
   if [ -n "${f}" ] && [ -f "${f}" ]
   then
-    bat -p --theme ansi --paging=always -f "${f}" || batcat -p --theme ansi --paging=always -f "${f}" || less "${f}" || :
+    bat -p --theme ansi --paging=always -f "${f}" 2>/dev/null || batcat -p --theme ansi --paging=always -f "${f}" 2>/dev/null || less "${f}" || :
   fi
 
   # show dir size
