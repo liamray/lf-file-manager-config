@@ -78,6 +78,10 @@ cmd make_a_copy ${{
   fi
 }}
 
+cmd print_file_name ${{
+  printf "=================================================\nFile(s):\n${fx}\n" | less
+}}
+
 cmd copy_item_name_2_clipboard ${{
   set -e
 
@@ -313,6 +317,7 @@ map n search-next
 map N search-prev
 map . set hidden!
 map o !true
+map O print_file_name
 map C copy_item_name_2_clipboard
 map sn :set sortby natural; set info
 map ss :set sortby size; set info size
