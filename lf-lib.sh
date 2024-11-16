@@ -145,3 +145,45 @@ gentle_change_dir() {
     lf -remote "send cd \"${dir_name}\""
   fi
 }
+
+provision_a_vm() {
+  set -x
+
+  img_url="${1}"
+  url_hash=$( echo "${img_url}" | md5sum | awk '{print $1}' )
+
+  # Prompt for VM name
+  vm_name=$(read_input "Provision a VM" "VM name ")
+
+  # Check if VM already exists
+  if vboxmanage list vms | grep "\"${vm_name}" > /dev/null
+  then
+      if yes_no_dialog "" "The [${vm_name}] VM already exists. Override?"
+      then
+          vboxmanage unregistervm "${vm_name}" --delete
+      else
+          exit
+      fi
+  fi
+
+  # Set OVA path and download if necessary
+  ova_path="/tmp/${url_hash}.ova"
+  if [ ! -f "${ova_path}" ]
+  then
+      wget -O "${ova_path}" "${img_url}"
+  fi
+
+  # Import and start the VM
+  vboxmanage import "${ova_path}" --vsys 0 --vmname "${vm_name}"
+
+  # Share a directory
+  tmp_dir="${HOME}/tmp/vm-shared-dirs/${vm_name}"
+  mkdir -p "${tmp_dir}"
+  vboxmanage sharedfolder add "${vm_name}" --name "shared" --hostpath "${tmp_dir}" --automount
+
+  # Start the VM
+  vboxmanage startvm "${vm_name}" --type gui
+
+  # Completion message
+  echo "Done for [${vm_name}]"
+}
