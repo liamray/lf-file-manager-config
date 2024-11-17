@@ -206,13 +206,27 @@ cmd view_file ${{
   # file preview
   if [ -n "${f}" ] && [ -f "${f}" ]
   then
+    less "${f}" || :
+  fi
+
+  # show dir size
+  if [ -n "${f}" ] && [ -d "${f}" ]
+  then
+    lf -remote "send calcdirsize"
+  fi
+}}
+
+cmd view_file_bat ${{
+  # file preview
+  if [ -n "${f}" ] && [ -f "${f}" ]
+  then
     bat -p --theme ansi --paging=always -f "${f}" 2>/dev/null || batcat -p --theme ansi --paging=always -f "${f}" 2>/dev/null || less "${f}" || :
   fi
 
   # show dir size
   if [ -n "${f}" ] && [ -d "${f}" ]
   then
-    lf -remote "send calcdirsize"      
+    lf -remote "send calcdirsize"
   fi
 }}
 
@@ -353,11 +367,12 @@ map <backtab> open_current_dir
 map <f-1> f_menu
 map <f-2> menu
 map <f-3> view_file
+map <s-f-3> view_file_bat
 map <f-4> edit_file
+map <s-f-4> mk_file
 map <f-5> make_a_copy
 map <f-6> rename
 map <f-7> mk_dir
-map <f-8> mk_file
 map <f-12> self_install_command
 
 # jump to dirs
